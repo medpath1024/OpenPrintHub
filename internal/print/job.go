@@ -113,14 +113,18 @@ func (s *JobStore) CancelJob(jobID string) (*printer.JobResult, error) {
 		entry.Result.Message = "Canceled by user"
 		entry.Result.CompletedAt = time.Now()
 		s.addToHistory(entry)
-		return entry.Result, nil
+		// Return a copy to avoid race conditions
+		result := *entry.Result
+		return &result, nil
 	case printer.JobStatusProcessing, printer.JobStatusPrinting:
 		// Job is already being processed, mark for cancellation
 		entry.Result.Status = printer.JobStatusCanceled
 		entry.Result.Message = "Cancellation requested"
 		entry.Result.CompletedAt = time.Now()
 		s.addToHistory(entry)
-		return entry.Result, nil
+		// Return a copy to avoid race conditions
+		result := *entry.Result
+		return &result, nil
 	case printer.JobStatusCompleted, printer.JobStatusFailed, printer.JobStatusCanceled:
 		return nil, fmt.Errorf("job already in terminal state: %s", entry.Result.Status)
 	default:
@@ -133,7 +137,15 @@ func (s *JobStore) GetJob(jobID string) (*JobEntry, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	entry, ok := s.jobs[jobID]
-	return entry, ok
+	if !ok {
+		return nil, false
+	}
+	// Return deep copy to avoid race conditions
+	resultCopy := *entry.Result
+	return &JobEntry{
+		Job:    entry.Job,
+		Result: &resultCopy,
+	}, true
 }
 
 // UpdateJobStatus updates the status of a job
@@ -182,10 +194,15 @@ func (s *JobStore) GetHistory(limit int) []*JobEntry {
 		limit = len(s.history)
 	}
 
-	// Return most recent first
+	// Return most recent first with deep copies to avoid race conditions
 	result := make([]*JobEntry, limit)
 	for i := 0; i < limit; i++ {
-		result[i] = s.history[len(s.history)-1-i]
+		entry := s.history[len(s.history)-1-i]
+		resultCopy := *entry.Result
+		result[i] = &JobEntry{
+			Job:    entry.Job,
+			Result: &resultCopy,
+		}
 	}
 	return result
 }
@@ -197,7 +214,12 @@ func (s *JobStore) GetAllJobs() []*JobEntry {
 
 	result := make([]*JobEntry, 0, len(s.jobs))
 	for _, entry := range s.jobs {
-		result = append(result, entry)
+		// Return deep copy to avoid race conditions
+		resultCopy := *entry.Result
+		result = append(result, &JobEntry{
+			Job:    entry.Job,
+			Result: &resultCopy,
+		})
 	}
 	return result
 }

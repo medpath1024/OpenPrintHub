@@ -311,12 +311,12 @@ func TestQueue_OnStatusChange(t *testing.T) {
 	q := NewQueue(mockSvc)
 	defer q.Stop()
 
-	statusChanges := make([]printer.JobStatus, 0)
+	statusChanges := make(map[printer.JobStatus]bool)
 	var mu sync.Mutex
 
 	q.OnStatusChange(func(jobID string, status printer.JobStatus, message string) {
 		mu.Lock()
-		statusChanges = append(statusChanges, status)
+		statusChanges[status] = true
 		mu.Unlock()
 	})
 
@@ -338,11 +338,7 @@ func TestQueue_OnStatusChange(t *testing.T) {
 	defer mu.Unlock()
 
 	// Should have received status changes: queued, processing, printing, completed
-	if len(statusChanges) < 3 {
-		t.Errorf("Expected at least 3 status changes, got %d", len(statusChanges))
-	}
-
-	// Verify status progression
+	// Note: callbacks are async so we just verify all statuses were received
 	expectedStatuses := []printer.JobStatus{
 		printer.JobStatusQueued,
 		printer.JobStatusProcessing,
@@ -350,9 +346,9 @@ func TestQueue_OnStatusChange(t *testing.T) {
 		printer.JobStatusCompleted,
 	}
 
-	for i, expected := range expectedStatuses {
-		if i < len(statusChanges) && statusChanges[i] != expected {
-			t.Errorf("Status change %d: expected %s, got %s", i, expected, statusChanges[i])
+	for _, expected := range expectedStatuses {
+		if !statusChanges[expected] {
+			t.Errorf("Expected to receive status %s, but didn't", expected)
 		}
 	}
 }
