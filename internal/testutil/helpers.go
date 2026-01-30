@@ -127,11 +127,11 @@ func GeneratePNGBase64() string {
 // GenerateESCPOSData generates ESC/POS test data
 func GenerateESCPOSData() []byte {
 	return []byte{
-		0x1B, 0x40,             // ESC @ - Initialize printer
-		0x1B, 0x61, 0x01,       // ESC a 1 - Center alignment
+		0x1B, 0x40, // ESC @ - Initialize printer
+		0x1B, 0x61, 0x01, // ESC a 1 - Center alignment
 		0x48, 0x65, 0x6C, 0x6C, 0x6F, // "Hello"
-		0x0A,                   // Line feed
-		0x1D, 0x56, 0x00,       // GS V 0 - Cut paper
+		0x0A,             // Line feed
+		0x1D, 0x56, 0x00, // GS V 0 - Cut paper
 	}
 }
 

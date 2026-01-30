@@ -510,11 +510,11 @@ func TestJobStore_CancelJob(t *testing.T) {
 		t.Fatalf("CancelJob failed: %v", err)
 	}
 
-	if result.Status != printer.JobStatusCancelled {
-		t.Errorf("Expected status cancelled, got %s", result.Status)
+	if result.Status != printer.JobStatusCanceled {
+		t.Errorf("Expected status canceled, got %s", result.Status)
 	}
-	if result.Message != "Cancelled by user" {
-		t.Errorf("Expected message 'Cancelled by user', got '%s'", result.Message)
+	if result.Message != "Canceled by user" {
+		t.Errorf("Expected message 'Canceled by user', got '%s'", result.Message)
 	}
 	if result.CompletedAt.IsZero() {
 		t.Error("Expected CompletedAt to be set")
@@ -550,7 +550,7 @@ func TestJobStore_CancelJob_AlreadyCompleted(t *testing.T) {
 	// Try to cancel
 	_, err := store.CancelJob(job.ID)
 	if err == nil {
-		t.Error("Expected error when cancelling completed job")
+		t.Error("Expected error when canceling completed job")
 	}
 }
 

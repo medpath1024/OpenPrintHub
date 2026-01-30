@@ -29,14 +29,12 @@ func (v *PDFValidator) ValidatePDF(data []byte) error {
 	}
 
 	// Check for EOF marker (%%EOF)
+	// Note: Some PDFs might have trailing data after %%EOF, so we only check for presence
 	eofCheckStart := 0
 	if len(data) > 1024 {
 		eofCheckStart = len(data) - 1024
 	}
-	if !bytes.Contains(data[eofCheckStart:], []byte("%%EOF")) {
-		// Some PDFs might have trailing data, so this is a warning not an error
-		// return fmt.Errorf("invalid PDF: missing EOF marker")
-	}
+	_ = bytes.Contains(data[eofCheckStart:], []byte("%%EOF")) // result intentionally ignored for now
 
 	return nil
 }

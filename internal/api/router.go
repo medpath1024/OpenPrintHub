@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/medpath1024/OpenPrintHub/internal/print"
 	"github.com/medpath1024/OpenPrintHub/internal/printer"
 	"github.com/medpath1024/OpenPrintHub/internal/web"
@@ -13,8 +14,8 @@ import (
 
 // Config holds the server configuration
 type Config struct {
-	Port         int    // API/communication port
-	WebPort      int    // Web admin dashboard port (typically Port+1)
+	Port         int // API/communication port
+	WebPort      int // Web admin dashboard port (typically Port+1)
 	AllowOrigins string
 	PrinterSvc   printer.Service
 	PrintQueue   *print.Queue

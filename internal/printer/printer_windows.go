@@ -12,35 +12,35 @@ import (
 )
 
 var (
-	winspool           = syscall.NewLazyDLL("winspool.drv")
-	procEnumPrinters   = winspool.NewProc("EnumPrintersW")
+	winspool              = syscall.NewLazyDLL("winspool.drv")
+	procEnumPrinters      = winspool.NewProc("EnumPrintersW")
 	procGetDefaultPrinter = winspool.NewProc("GetDefaultPrinterW")
-	procOpenPrinter    = winspool.NewProc("OpenPrinterW")
-	procClosePrinter   = winspool.NewProc("ClosePrinter")
-	procStartDocPrinter = winspool.NewProc("StartDocPrinterW")
-	procEndDocPrinter  = winspool.NewProc("EndDocPrinter")
-	procStartPagePrinter = winspool.NewProc("StartPagePrinter")
-	procEndPagePrinter = winspool.NewProc("EndPagePrinter")
-	procWritePrinter   = winspool.NewProc("WritePrinter")
-	procGetPrinter     = winspool.NewProc("GetPrinterW")
+	procOpenPrinter       = winspool.NewProc("OpenPrinterW")
+	procClosePrinter      = winspool.NewProc("ClosePrinter")
+	procStartDocPrinter   = winspool.NewProc("StartDocPrinterW")
+	procEndDocPrinter     = winspool.NewProc("EndDocPrinter")
+	procStartPagePrinter  = winspool.NewProc("StartPagePrinter")
+	procEndPagePrinter    = winspool.NewProc("EndPagePrinter")
+	procWritePrinter      = winspool.NewProc("WritePrinter")
+	procGetPrinter        = winspool.NewProc("GetPrinterW")
 
-	kernel32           = syscall.NewLazyDLL("kernel32.dll")
-	procGetLastError   = kernel32.NewProc("GetLastError")
+	kernel32         = syscall.NewLazyDLL("kernel32.dll")
+	procGetLastError = kernel32.NewProc("GetLastError")
 
-	shell32            = syscall.NewLazyDLL("shell32.dll")
-	procShellExecute   = shell32.NewProc("ShellExecuteW")
+	shell32          = syscall.NewLazyDLL("shell32.dll")
+	procShellExecute = shell32.NewProc("ShellExecuteW")
 )
 
 const (
-	PRINTER_ENUM_LOCAL      = 0x00000002
+	PRINTER_ENUM_LOCAL       = 0x00000002
 	PRINTER_ENUM_CONNECTIONS = 0x00000004
-	PRINTER_STATUS_READY    = 0x00000000
-	PRINTER_STATUS_PAUSED   = 0x00000001
-	PRINTER_STATUS_ERROR    = 0x00000002
-	PRINTER_STATUS_OFFLINE  = 0x00000080
+	PRINTER_STATUS_READY     = 0x00000000
+	PRINTER_STATUS_PAUSED    = 0x00000001
+	PRINTER_STATUS_ERROR     = 0x00000002
+	PRINTER_STATUS_OFFLINE   = 0x00000080
 	PRINTER_STATUS_PAPER_JAM = 0x00000008
 	PRINTER_STATUS_PAPER_OUT = 0x00000010
-	PRINTER_STATUS_BUSY     = 0x00000200
+	PRINTER_STATUS_BUSY      = 0x00000200
 )
 
 // PRINTER_INFO_2 structure

@@ -6,13 +6,13 @@ import "time"
 type PrinterStatus string
 
 const (
-	StatusReady      PrinterStatus = "Ready"
-	StatusBusy       PrinterStatus = "Busy"
-	StatusOffline    PrinterStatus = "Offline"
-	StatusError      PrinterStatus = "Error"
-	StatusPaperOut   PrinterStatus = "PaperOut"
-	StatusPaperJam   PrinterStatus = "PaperJam"
-	StatusUnknown    PrinterStatus = "Unknown"
+	StatusReady    PrinterStatus = "Ready"
+	StatusBusy     PrinterStatus = "Busy"
+	StatusOffline  PrinterStatus = "Offline"
+	StatusError    PrinterStatus = "Error"
+	StatusPaperOut PrinterStatus = "PaperOut"
+	StatusPaperJam PrinterStatus = "PaperJam"
+	StatusUnknown  PrinterStatus = "Unknown"
 )
 
 // PrinterInfo contains information about a printer
@@ -62,8 +62,8 @@ type PrintJob struct {
 	Name        string        `json:"name,omitempty"` // Job name for identification
 	PrinterName string        `json:"printer"`
 	Type        PrintJobType  `json:"type"`
-	Data        []byte        `json:"-"`        // Raw binary data (not serialized in JSON)
-	DataBase64  string        `json:"data"`     // Base64 encoded data from API
+	Data        []byte        `json:"-"`    // Raw binary data (not serialized in JSON)
+	DataBase64  string        `json:"data"` // Base64 encoded data from API
 	Settings    PrintSettings `json:"settings"`
 	CreatedAt   time.Time     `json:"created_at"`
 }
@@ -77,7 +77,7 @@ const (
 	JobStatusPrinting   JobStatus = "printing"
 	JobStatusCompleted  JobStatus = "completed"
 	JobStatusFailed     JobStatus = "failed"
-	JobStatusCancelled  JobStatus = "cancelled"
+	JobStatusCanceled   JobStatus = "canceled"
 )
 
 // JobResult contains the result of a print job

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
 	"github.com/medpath1024/OpenPrintHub/internal/print"
 	"github.com/medpath1024/OpenPrintHub/internal/printer"
 )
@@ -156,9 +157,12 @@ func TestIntegration_WebSocketJobStatusUpdates(t *testing.T) {
 
 	// Connect WebSocket
 	wsURL := "ws" + strings.TrimPrefix(testServer.URL, "http") + "/v1/ws"
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	if err != nil {
 		t.Fatalf("WebSocket connection failed: %v", err)
+	}
+	if resp != nil && resp.Body != nil {
+		defer resp.Body.Close()
 	}
 	defer conn.Close()
 
@@ -419,7 +423,7 @@ func TestIntegration_PrintJobTypes(t *testing.T) {
 	}{
 		{"pdf", []byte("%PDF-1.4 test content")},
 		{"raw", []byte{0x1B, 0x40, 0x48, 0x65, 0x6C, 0x6C, 0x6F}}, // ESC/POS
-		{"image", []byte{0xFF, 0xD8, 0xFF, 0xE0}},                  // JPEG header
+		{"image", []byte{0xFF, 0xD8, 0xFF, 0xE0}},                 // JPEG header
 	}
 
 	for _, tt := range types {

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
 	"github.com/medpath1024/OpenPrintHub/internal/print"
 	"github.com/medpath1024/OpenPrintHub/internal/printer"
 )
@@ -95,12 +96,6 @@ func (m *mockPrinterService) setListError(err error) {
 func (m *mockPrinterService) setDefaultError(err error) {
 	m.mu.Lock()
 	m.defaultError = err
-	m.mu.Unlock()
-}
-
-func (m *mockPrinterService) setStatusError(err error) {
-	m.mu.Lock()
-	m.statusError = err
 	m.mu.Unlock()
 }
 

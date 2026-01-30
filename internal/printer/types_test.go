@@ -61,7 +61,7 @@ func TestJobStatus_Constants(t *testing.T) {
 		{"JobStatusPrinting", JobStatusPrinting, "printing"},
 		{"JobStatusCompleted", JobStatusCompleted, "completed"},
 		{"JobStatusFailed", JobStatusFailed, "failed"},
-		{"JobStatusCancelled", JobStatusCancelled, "cancelled"},
+		{"JobStatusCanceled", JobStatusCanceled, "canceled"},
 	}
 
 	for _, tt := range tests {

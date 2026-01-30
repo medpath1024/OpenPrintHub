@@ -18,11 +18,11 @@ type MockPrinterService struct {
 	DefaultPrinter string
 
 	// Error to return from methods
-	ListError      error
-	DefaultError   error
-	StatusError    error
-	PrintError     error
-	PrintRawError  error
+	ListError     error
+	DefaultError  error
+	StatusError   error
+	PrintError    error
+	PrintRawError error
 
 	// Track calls for verification
 	PrintCalls    []PrintCall

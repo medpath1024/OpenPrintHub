@@ -597,8 +597,8 @@ func TestQueue_CancelJob(t *testing.T) {
 	if err != nil {
 		t.Errorf("CancelJob failed: %v", err)
 	}
-	if result.Status != printer.JobStatusCancelled {
-		t.Errorf("Expected status cancelled, got %s", result.Status)
+	if result.Status != printer.JobStatusCanceled {
+		t.Errorf("Expected status canceled, got %s", result.Status)
 	}
 }
 

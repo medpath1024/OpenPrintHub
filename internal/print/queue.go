@@ -89,7 +89,7 @@ func (q *Queue) CancelJob(jobID string) (*printer.JobResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	q.notifyStatus(jobID, printer.JobStatusCancelled, result.Message)
+	q.notifyStatus(jobID, printer.JobStatusCanceled, result.Message)
 	return result, nil
 }
 

@@ -7,21 +7,22 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
 	"github.com/medpath1024/OpenPrintHub/internal/printer"
 )
 
 // JobStore manages print job storage and retrieval
 type JobStore struct {
-	mu      sync.RWMutex
-	jobs    map[string]*JobEntry
-	history []*JobEntry
+	mu         sync.RWMutex
+	jobs       map[string]*JobEntry
+	history    []*JobEntry
 	maxHistory int
 }
 
 // JobEntry represents a stored print job with its result
 type JobEntry struct {
-	Job    *printer.PrintJob   `json:"job"`
-	Result *printer.JobResult  `json:"result"`
+	Job    *printer.PrintJob  `json:"job"`
+	Result *printer.JobResult `json:"result"`
 }
 
 // NewJobStore creates a new job store
@@ -104,23 +105,23 @@ func (s *JobStore) CancelJob(jobID string) (*printer.JobResult, error) {
 		return nil, fmt.Errorf("job not found: %s", jobID)
 	}
 
-	// Check if job can be cancelled
+	// Check if job can be canceled
 	switch entry.Result.Status {
 	case printer.JobStatusQueued:
 		// Can cancel queued jobs
-		entry.Result.Status = printer.JobStatusCancelled
-		entry.Result.Message = "Cancelled by user"
+		entry.Result.Status = printer.JobStatusCanceled
+		entry.Result.Message = "Canceled by user"
 		entry.Result.CompletedAt = time.Now()
 		s.addToHistory(entry)
 		return entry.Result, nil
 	case printer.JobStatusProcessing, printer.JobStatusPrinting:
 		// Job is already being processed, mark for cancellation
-		entry.Result.Status = printer.JobStatusCancelled
+		entry.Result.Status = printer.JobStatusCanceled
 		entry.Result.Message = "Cancellation requested"
 		entry.Result.CompletedAt = time.Now()
 		s.addToHistory(entry)
 		return entry.Result, nil
-	case printer.JobStatusCompleted, printer.JobStatusFailed, printer.JobStatusCancelled:
+	case printer.JobStatusCompleted, printer.JobStatusFailed, printer.JobStatusCanceled:
 		return nil, fmt.Errorf("job already in terminal state: %s", entry.Result.Status)
 	default:
 		return nil, fmt.Errorf("unknown job status: %s", entry.Result.Status)
@@ -156,7 +157,7 @@ func (s *JobStore) UpdateJobStatus(jobID string, status printer.JobStatus, messa
 		if entry.Result.StartedAt.IsZero() {
 			entry.Result.StartedAt = time.Now()
 		}
-	case printer.JobStatusCompleted, printer.JobStatusFailed, printer.JobStatusCancelled:
+	case printer.JobStatusCompleted, printer.JobStatusFailed, printer.JobStatusCanceled:
 		entry.Result.CompletedAt = time.Now()
 		// Add to history
 		s.addToHistory(entry)
@@ -235,7 +236,7 @@ type BatchPrintResponse struct {
 
 // PrintResponse represents the response to a print request
 type PrintResponse struct {
-	JobID   string             `json:"job_id"`
-	Status  printer.JobStatus  `json:"status"`
-	Message string             `json:"message,omitempty"`
+	JobID   string            `json:"job_id"`
+	Status  printer.JobStatus `json:"status"`
+	Message string            `json:"message,omitempty"`
 }

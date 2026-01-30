@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 )
 
@@ -131,14 +130,14 @@ func (s *linuxService) Print(job *PrintJob) error {
 	if err != nil {
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
-	defer os.Remove(tmpFile.Name())
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
 
 	// Write data to temp file
 	if _, err := tmpFile.Write(job.Data); err != nil {
-		tmpFile.Close()
+		_ = tmpFile.Close()
 		return fmt.Errorf("failed to write print data: %w", err)
 	}
-	tmpFile.Close()
+	_ = tmpFile.Close()
 
 	// Build lp command arguments
 	args := []string{"-d", printerName}
@@ -203,13 +202,13 @@ func (s *linuxService) PrintRaw(printerName string, data []byte) error {
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
 	tmpPath := tmpFile.Name()
-	defer os.Remove(tmpPath)
+	defer func() { _ = os.Remove(tmpPath) }()
 
 	if _, err := tmpFile.Write(data); err != nil {
-		tmpFile.Close()
+		_ = tmpFile.Close()
 		return fmt.Errorf("failed to write raw data: %w", err)
 	}
-	tmpFile.Close()
+	_ = tmpFile.Close()
 
 	// Use lp with raw option
 	cmd := exec.Command("lp", "-d", cupsName, "-o", "raw", tmpPath)
@@ -240,26 +239,4 @@ func (s *linuxService) GetPrinterURI(printerName string) (string, error) {
 	}
 
 	return "", fmt.Errorf("could not parse printer URI")
-}
-
-// findPrinterDevice attempts to find the device path for direct USB printing
-func findPrinterDevice(printerName string) (string, error) {
-	// Common USB printer device paths on Linux
-	patterns := []string{
-		"/dev/usb/lp*",
-		"/dev/ttyUSB*",
-		"/dev/ttyACM*",
-	}
-
-	for _, pattern := range patterns {
-		matches, err := filepath.Glob(pattern)
-		if err != nil {
-			continue
-		}
-		if len(matches) > 0 {
-			return matches[0], nil
-		}
-	}
-
-	return "", fmt.Errorf("no USB printer device found")
 }
