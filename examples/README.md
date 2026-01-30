@@ -94,6 +94,12 @@ xdg-open demo.html
 
 ## API Quick Reference
 
+### Service Info
+
+```bash
+curl http://localhost:16800/v1/info
+```
+
 ### List Printers
 
 ```bash
@@ -109,7 +115,24 @@ curl -X POST http://localhost:16800/v1/print \
   -d "{
     \"printer\": \"Printer Name\",
     \"type\": \"pdf\",
-    \"data\": \"$PDF_BASE64\"
+    \"data\": \"$PDF_BASE64\",
+    \"name\": \"my-document.pdf\"
+  }"
+```
+
+### Batch Print
+
+```bash
+PDF1_BASE64=$(base64 -i doc1.pdf)
+PDF2_BASE64=$(base64 -i doc2.pdf)
+curl -X POST http://localhost:16800/v1/print/batch \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"printer\": \"Printer Name\",
+    \"jobs\": [
+      {\"type\": \"pdf\", \"data\": \"$PDF1_BASE64\", \"name\": \"doc1.pdf\"},
+      {\"type\": \"pdf\", \"data\": \"$PDF2_BASE64\", \"name\": \"doc2.pdf\"}
+    ]
   }"
 ```
 
@@ -129,6 +152,12 @@ curl -X POST http://localhost:16800/v1/print \
 
 ```bash
 curl http://localhost:16800/v1/jobs/{job_id}
+```
+
+### Cancel Job
+
+```bash
+curl -X POST http://localhost:16800/v1/jobs/{job_id}/cancel
 ```
 
 ## Print Types

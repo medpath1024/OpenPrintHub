@@ -46,16 +46,24 @@ func (s *JobStore) CreateJob(req *PrintRequest) (*printer.PrintJob, error) {
 
 	// Generate job ID
 	jobID := uuid.New().String()
+	now := time.Now()
+
+	// Generate default name if not provided
+	jobName := req.Name
+	if jobName == "" {
+		jobName = fmt.Sprintf("%s-%s", req.Type, now.Format("150405"))
+	}
 
 	// Create job
 	job := &printer.PrintJob{
 		ID:          jobID,
+		Name:        jobName,
 		PrinterName: req.Printer,
 		Type:        printer.PrintJobType(req.Type),
 		Data:        data,
 		DataBase64:  req.Data,
 		Settings:    req.Settings,
-		CreatedAt:   time.Now(),
+		CreatedAt:   now,
 	}
 
 	// Apply default settings
@@ -65,6 +73,9 @@ func (s *JobStore) CreateJob(req *PrintRequest) (*printer.PrintJob, error) {
 	if job.Settings.Orientation == "" {
 		job.Settings.Orientation = "portrait"
 	}
+	if job.Settings.DPI <= 0 && job.Type == printer.JobTypeImage {
+		job.Settings.DPI = 300
+	}
 
 	// Store job
 	s.mu.Lock()
@@ -72,13 +83,48 @@ func (s *JobStore) CreateJob(req *PrintRequest) (*printer.PrintJob, error) {
 		Job: job,
 		Result: &printer.JobResult{
 			JobID:       jobID,
+			Name:        jobName,
 			Status:      printer.JobStatusQueued,
 			PrinterName: req.Printer,
+			CreatedAt:   now,
 		},
 	}
 	s.mu.Unlock()
 
 	return job, nil
+}
+
+// CancelJob cancels a job if it's still in a cancellable state
+func (s *JobStore) CancelJob(jobID string) (*printer.JobResult, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	entry, ok := s.jobs[jobID]
+	if !ok {
+		return nil, fmt.Errorf("job not found: %s", jobID)
+	}
+
+	// Check if job can be cancelled
+	switch entry.Result.Status {
+	case printer.JobStatusQueued:
+		// Can cancel queued jobs
+		entry.Result.Status = printer.JobStatusCancelled
+		entry.Result.Message = "Cancelled by user"
+		entry.Result.CompletedAt = time.Now()
+		s.addToHistory(entry)
+		return entry.Result, nil
+	case printer.JobStatusProcessing, printer.JobStatusPrinting:
+		// Job is already being processed, mark for cancellation
+		entry.Result.Status = printer.JobStatusCancelled
+		entry.Result.Message = "Cancellation requested"
+		entry.Result.CompletedAt = time.Now()
+		s.addToHistory(entry)
+		return entry.Result, nil
+	case printer.JobStatusCompleted, printer.JobStatusFailed, printer.JobStatusCancelled:
+		return nil, fmt.Errorf("job already in terminal state: %s", entry.Result.Status)
+	default:
+		return nil, fmt.Errorf("unknown job status: %s", entry.Result.Status)
+	}
 }
 
 // GetJob returns a job by ID
@@ -160,7 +206,31 @@ type PrintRequest struct {
 	Printer  string                `json:"printer" binding:"required"`
 	Type     string                `json:"type" binding:"required"`
 	Data     string                `json:"data" binding:"required"`
+	Name     string                `json:"name,omitempty"` // Job name for identification
 	Settings printer.PrintSettings `json:"settings"`
+}
+
+// BatchPrintRequest represents a batch print request
+type BatchPrintRequest struct {
+	Printer string              `json:"printer" binding:"required"`
+	Jobs    []BatchPrintJobItem `json:"jobs" binding:"required,min=1,max=100"`
+}
+
+// BatchPrintJobItem represents a single job in a batch request
+type BatchPrintJobItem struct {
+	Type     string                `json:"type" binding:"required"`
+	Data     string                `json:"data" binding:"required"`
+	Name     string                `json:"name,omitempty"`
+	Settings printer.PrintSettings `json:"settings"`
+}
+
+// BatchPrintResponse represents the response to a batch print request
+type BatchPrintResponse struct {
+	BatchID string          `json:"batch_id"`
+	Jobs    []PrintResponse `json:"jobs"`
+	Total   int             `json:"total"`
+	Queued  int             `json:"queued"`
+	Failed  int             `json:"failed"`
 }
 
 // PrintResponse represents the response to a print request

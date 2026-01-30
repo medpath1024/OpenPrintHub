@@ -195,6 +195,10 @@
     <div id="connectionStatus" class="status disconnected">
         Connecting to OpenPrintHub...
     </div>
+    
+    <div id="serviceInfo" class="card" style="display:none;">
+        <strong>Service Info:</strong> <span id="infoText"></span>
+    </div>
 
     <div class="card">
         <h2>Available Printers</h2>
@@ -216,6 +220,10 @@
             <div class="form-group">
                 <label>PDF File</label>
                 <input type="file" id="pdfFile" accept=".pdf">
+            </div>
+            <div class="form-group">
+                <label>Job Name (optional)</label>
+                <input type="text" id="pdfJobName" placeholder="e.g., invoice-001.pdf">
             </div>
             <div class="form-group">
                 <label>Copies</label>
@@ -281,6 +289,17 @@ Cookie,2.50</textarea>
     </div>
 
     <div class="card">
+        <h2>Job Management</h2>
+        <div class="form-group">
+            <label>Job ID to Cancel</label>
+            <input type="text" id="cancelJobId" placeholder="Enter Job ID">
+        </div>
+        <button onclick="cancelJob()">Cancel Job</button>
+        <button class="secondary" onclick="loadJobs()">Refresh Jobs</button>
+        <div id="jobList" style="margin-top: 15px;"></div>
+    </div>
+    
+    <div class="card">
         <h2>WebSocket Status</h2>
         <div id="wsLog" class="ws-log"></div>
     </div>
@@ -312,7 +331,7 @@ Cookie,2.50</textarea>
             });
         }
 
-        // Check connection
+        // Check connection and get info
         async function checkConnection() {
             try {
                 const response = await fetch(`${OPH_URL}/health`);
@@ -320,6 +339,13 @@ Cookie,2.50</textarea>
                 document.getElementById('connectionStatus').className = 'status connected';
                 document.getElementById('connectionStatus').textContent = 
                     `Connected to OpenPrintHub v${data.version}`;
+                
+                // Get detailed service info
+                const infoResponse = await fetch(`${OPH_URL}/v1/info`);
+                const info = await infoResponse.json();
+                document.getElementById('serviceInfo').style.display = 'block';
+                document.getElementById('infoText').textContent = 
+                    `v${info.version} | ${info.platform}/${info.arch} | Uptime: ${Math.floor(info.uptime/60)}m | Printers: ${info.printers}`;
             } catch (e) {
                 document.getElementById('connectionStatus').className = 'status disconnected';
                 document.getElementById('connectionStatus').textContent = 
@@ -404,6 +430,7 @@ Cookie,2.50</textarea>
         async function printPDF() {
             const fileInput = document.getElementById('pdfFile');
             const copies = parseInt(document.getElementById('pdfCopies').value);
+            const jobName = document.getElementById('pdfJobName').value;
             
             if (!fileInput.files.length) {
                 showResult('Please select a PDF file', true);
@@ -429,6 +456,7 @@ Cookie,2.50</textarea>
                             printer: selectedPrinter,
                             type: 'pdf',
                             data: base64,
+                            name: jobName || file.name,
                             settings: { copies }
                         })
                     });
@@ -439,6 +467,69 @@ Cookie,2.50</textarea>
             };
             
             reader.readAsDataURL(file);
+        }
+        
+        // Cancel job
+        async function cancelJob() {
+            const jobId = document.getElementById('cancelJobId').value.trim();
+            if (!jobId) {
+                showResult('Please enter a Job ID', true);
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${OPH_URL}/v1/jobs/${jobId}/cancel`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                showResult(result, !response.ok);
+                loadJobs();
+            } catch (e) {
+                showResult(e.message, true);
+            }
+        }
+        
+        // Load jobs list
+        async function loadJobs() {
+            try {
+                const response = await fetch(`${OPH_URL}/v1/jobs`);
+                const jobs = await response.json();
+                
+                const container = document.getElementById('jobList');
+                if (jobs.length === 0) {
+                    container.innerHTML = '<p style="color: #666;">No active jobs</p>';
+                    return;
+                }
+                
+                container.innerHTML = `
+                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                        <tr style="background: #f0f0f0;">
+                            <th style="padding: 8px; text-align: left;">Job ID</th>
+                            <th style="padding: 8px; text-align: left;">Name</th>
+                            <th style="padding: 8px; text-align: left;">Status</th>
+                            <th style="padding: 8px; text-align: left;">Action</th>
+                        </tr>
+                        ${jobs.map(j => `
+                            <tr style="border-bottom: 1px solid #ddd;">
+                                <td style="padding: 8px; font-family: monospace;">${j.job_id.slice(0, 8)}...</td>
+                                <td style="padding: 8px;">${j.name || '-'}</td>
+                                <td style="padding: 8px;"><span class="status ${j.status}">${j.status}</span></td>
+                                <td style="padding: 8px;">
+                                    ${j.status === 'queued' ? `<button onclick="cancelJobById('${j.job_id}')" style="padding: 4px 8px; font-size: 12px;">Cancel</button>` : ''}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </table>
+                `;
+            } catch (e) {
+                document.getElementById('jobList').innerHTML = '<p style="color: red;">Error loading jobs</p>';
+            }
+        }
+        
+        // Cancel job by ID (from table)
+        async function cancelJobById(jobId) {
+            document.getElementById('cancelJobId').value = jobId;
+            await cancelJob();
         }
 
         // Print Receipt (ESC/POS)

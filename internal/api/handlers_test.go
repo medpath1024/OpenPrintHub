@@ -109,12 +109,15 @@ func setupTestRouter(printerSvc printer.Service, queue *print.Queue) *gin.Engine
 	handlers := NewHandlers(printerSvc, queue)
 
 	router.GET("/health", handlers.HealthCheck)
+	router.GET("/v1/info", handlers.GetInfo)
 	router.GET("/v1/printers", handlers.ListPrinters)
 	router.GET("/v1/printers/default", handlers.GetDefaultPrinter)
 	router.GET("/v1/printers/:id/status", handlers.GetPrinterStatus)
 	router.POST("/v1/print", handlers.SubmitPrintJob)
+	router.POST("/v1/print/batch", handlers.SubmitBatchPrintJob)
 	router.GET("/v1/jobs", handlers.ListJobs)
 	router.GET("/v1/jobs/:id", handlers.GetJobStatus)
+	router.POST("/v1/jobs/:id/cancel", handlers.CancelJob)
 	router.GET("/v1/stats", handlers.GetStats)
 
 	return router
@@ -670,5 +673,228 @@ func BenchmarkHandlers_SubmitPrintJob(b *testing.B) {
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
+	}
+}
+
+func TestHandlers_GetInfo(t *testing.T) {
+	mockSvc := newMockPrinterService()
+	queue := print.NewQueue(mockSvc)
+	defer queue.Stop()
+
+	router := setupTestRouter(mockSvc, queue)
+
+	req := httptest.NewRequest("GET", "/v1/info", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	// Verify expected fields
+	if _, ok := resp["version"]; !ok {
+		t.Error("Expected 'version' field in response")
+	}
+	if _, ok := resp["platform"]; !ok {
+		t.Error("Expected 'platform' field in response")
+	}
+	if _, ok := resp["downloads"]; !ok {
+		t.Error("Expected 'downloads' field in response")
+	}
+	if _, ok := resp["uptime"]; !ok {
+		t.Error("Expected 'uptime' field in response")
+	}
+}
+
+func TestHandlers_CancelJob(t *testing.T) {
+	mockSvc := newMockPrinterService()
+	queue := print.NewQueue(mockSvc)
+	defer queue.Stop()
+
+	router := setupTestRouter(mockSvc, queue)
+
+	// Submit a job first
+	testData := []byte("test")
+	b64Data := base64.StdEncoding.EncodeToString(testData)
+
+	reqBody := `{
+		"printer": "printer1",
+		"type": "pdf",
+		"data": "` + b64Data + `"
+	}`
+
+	req := httptest.NewRequest("POST", "/v1/print", strings.NewReader(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	var submitResp print.PrintResponse
+	json.Unmarshal(w.Body.Bytes(), &submitResp)
+
+	// Cancel the job
+	req2 := httptest.NewRequest("POST", "/v1/jobs/"+submitResp.JobID+"/cancel", nil)
+	w2 := httptest.NewRecorder()
+	router.ServeHTTP(w2, req2)
+
+	// Job might already be processing, so accept both 200 and 400
+	if w2.Code != http.StatusOK && w2.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 200 or 400, got %d", w2.Code)
+	}
+}
+
+func TestHandlers_CancelJob_NotFound(t *testing.T) {
+	mockSvc := newMockPrinterService()
+	queue := print.NewQueue(mockSvc)
+	defer queue.Stop()
+
+	router := setupTestRouter(mockSvc, queue)
+
+	req := httptest.NewRequest("POST", "/v1/jobs/nonexistent/cancel", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", w.Code)
+	}
+}
+
+func TestHandlers_SubmitBatchPrintJob(t *testing.T) {
+	mockSvc := newMockPrinterService()
+	queue := print.NewQueue(mockSvc)
+	defer queue.Stop()
+
+	router := setupTestRouter(mockSvc, queue)
+
+	testData := []byte("test")
+	b64Data := base64.StdEncoding.EncodeToString(testData)
+
+	reqBody := `{
+		"printer": "printer1",
+		"jobs": [
+			{"type": "pdf", "data": "` + b64Data + `", "name": "doc1"},
+			{"type": "pdf", "data": "` + b64Data + `", "name": "doc2"},
+			{"type": "image", "data": "` + b64Data + `"}
+		]
+	}`
+
+	req := httptest.NewRequest("POST", "/v1/print/batch", strings.NewReader(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusAccepted {
+		t.Errorf("Expected status 202, got %d. Body: %s", w.Code, w.Body.String())
+	}
+
+	var resp print.BatchPrintResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("Failed to parse response: %v", err)
+	}
+
+	if resp.Total != 3 {
+		t.Errorf("Expected total 3, got %d", resp.Total)
+	}
+	if resp.Queued != 3 {
+		t.Errorf("Expected queued 3, got %d", resp.Queued)
+	}
+	if len(resp.Jobs) != 3 {
+		t.Errorf("Expected 3 jobs in response, got %d", len(resp.Jobs))
+	}
+}
+
+func TestHandlers_SubmitBatchPrintJob_InvalidType(t *testing.T) {
+	mockSvc := newMockPrinterService()
+	queue := print.NewQueue(mockSvc)
+	defer queue.Stop()
+
+	router := setupTestRouter(mockSvc, queue)
+
+	testData := []byte("test")
+	b64Data := base64.StdEncoding.EncodeToString(testData)
+
+	reqBody := `{
+		"printer": "printer1",
+		"jobs": [
+			{"type": "pdf", "data": "` + b64Data + `"},
+			{"type": "invalid", "data": "` + b64Data + `"}
+		]
+	}`
+
+	req := httptest.NewRequest("POST", "/v1/print/batch", strings.NewReader(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", w.Code)
+	}
+}
+
+func TestHandlers_SubmitBatchPrintJob_EmptyJobs(t *testing.T) {
+	mockSvc := newMockPrinterService()
+	queue := print.NewQueue(mockSvc)
+	defer queue.Stop()
+
+	router := setupTestRouter(mockSvc, queue)
+
+	reqBody := `{
+		"printer": "printer1",
+		"jobs": []
+	}`
+
+	req := httptest.NewRequest("POST", "/v1/print/batch", strings.NewReader(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Expected status 400, got %d", w.Code)
+	}
+}
+
+func TestHandlers_SubmitPrintJob_WithName(t *testing.T) {
+	mockSvc := newMockPrinterService()
+	queue := print.NewQueue(mockSvc)
+	defer queue.Stop()
+
+	router := setupTestRouter(mockSvc, queue)
+
+	testData := []byte("test")
+	b64Data := base64.StdEncoding.EncodeToString(testData)
+
+	reqBody := `{
+		"printer": "printer1",
+		"type": "pdf",
+		"data": "` + b64Data + `",
+		"name": "my-document.pdf"
+	}`
+
+	req := httptest.NewRequest("POST", "/v1/print", strings.NewReader(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusAccepted {
+		t.Errorf("Expected status 202, got %d", w.Code)
+	}
+
+	var resp print.PrintResponse
+	json.Unmarshal(w.Body.Bytes(), &resp)
+
+	// Get job and verify name
+	req2 := httptest.NewRequest("GET", "/v1/jobs/"+resp.JobID, nil)
+	w2 := httptest.NewRecorder()
+	router.ServeHTTP(w2, req2)
+
+	var jobResult printer.JobResult
+	json.Unmarshal(w2.Body.Bytes(), &jobResult)
+
+	if jobResult.Name != "my-document.pdf" {
+		t.Errorf("Expected name 'my-document.pdf', got '%s'", jobResult.Name)
 	}
 }

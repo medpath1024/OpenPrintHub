@@ -1,6 +1,7 @@
 package print
 
 import (
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -80,6 +81,61 @@ func (q *Queue) GetJobs() []*JobEntry {
 // GetHistory returns completed jobs
 func (q *Queue) GetHistory(limit int) []*JobEntry {
 	return q.jobStore.GetHistory(limit)
+}
+
+// CancelJob cancels a job by ID
+func (q *Queue) CancelJob(jobID string) (*printer.JobResult, error) {
+	result, err := q.jobStore.CancelJob(jobID)
+	if err != nil {
+		return nil, err
+	}
+	q.notifyStatus(jobID, printer.JobStatusCancelled, result.Message)
+	return result, nil
+}
+
+// SubmitBatch adds multiple print jobs to the queue
+func (q *Queue) SubmitBatch(req *BatchPrintRequest) (*BatchPrintResponse, error) {
+	batchID := fmt.Sprintf("batch-%d", time.Now().UnixNano())
+	resp := &BatchPrintResponse{
+		BatchID: batchID,
+		Jobs:    make([]PrintResponse, 0, len(req.Jobs)),
+		Total:   len(req.Jobs),
+	}
+
+	for i, jobItem := range req.Jobs {
+		// Create print request from batch item
+		printReq := &PrintRequest{
+			Printer:  req.Printer,
+			Type:     jobItem.Type,
+			Data:     jobItem.Data,
+			Name:     jobItem.Name,
+			Settings: jobItem.Settings,
+		}
+
+		// Generate default name if not provided
+		if printReq.Name == "" {
+			printReq.Name = fmt.Sprintf("%s-%s-%d", batchID, jobItem.Type, i+1)
+		}
+
+		// Submit job
+		jobResp, err := q.Submit(printReq)
+		if err != nil {
+			resp.Jobs = append(resp.Jobs, PrintResponse{
+				Status:  printer.JobStatusFailed,
+				Message: err.Error(),
+			})
+			resp.Failed++
+		} else {
+			resp.Jobs = append(resp.Jobs, *jobResp)
+			if jobResp.Status == printer.JobStatusQueued {
+				resp.Queued++
+			} else {
+				resp.Failed++
+			}
+		}
+	}
+
+	return resp, nil
 }
 
 // OnStatusChange registers a callback for job status changes

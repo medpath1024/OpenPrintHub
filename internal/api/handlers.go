@@ -2,10 +2,20 @@ package api
 
 import (
 	"net/http"
+	"runtime"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/medpath1024/OpenPrintHub/internal/print"
 	"github.com/medpath1024/OpenPrintHub/internal/printer"
+)
+
+// Version information (set at build time)
+var (
+	Version   = "0.1.0"
+	BuildTime = ""
+	GitCommit = ""
+	startTime = time.Now()
 )
 
 // Handlers contains all API handlers
@@ -26,7 +36,30 @@ func NewHandlers(printerSvc printer.Service, printQueue *print.Queue) *Handlers 
 func (h *Handlers) HealthCheck(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status":  "ok",
-		"version": "0.1.0",
+		"version": Version,
+	})
+}
+
+// GetInfo handles GET /v1/info - returns detailed service information
+func (h *Handlers) GetInfo(c *gin.Context) {
+	printers, _ := h.printerSvc.List()
+	stats := h.printQueue.Stats()
+
+	c.JSON(http.StatusOK, gin.H{
+		"version":    Version,
+		"build_time": BuildTime,
+		"git_commit": GitCommit,
+		"platform":   runtime.GOOS,
+		"arch":       runtime.GOARCH,
+		"go_version": runtime.Version(),
+		"uptime":     int64(time.Since(startTime).Seconds()),
+		"printers":   len(printers),
+		"stats":      stats,
+		"downloads": gin.H{
+			"darwin":  "https://github.com/medpath1024/OpenPrintHub/releases/latest/download/oph-darwin-amd64",
+			"windows": "https://github.com/medpath1024/OpenPrintHub/releases/latest/download/oph-windows-amd64.exe",
+			"linux":   "https://github.com/medpath1024/OpenPrintHub/releases/latest/download/oph-linux-amd64",
+		},
 	})
 }
 
@@ -104,6 +137,57 @@ func (h *Handlers) GetJobStatus(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, entry.Result)
+}
+
+// CancelJob handles POST /v1/jobs/:id/cancel
+func (h *Handlers) CancelJob(c *gin.Context) {
+	jobID := c.Param("id")
+
+	result, err := h.printQueue.CancelJob(jobID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}
+
+// SubmitBatchPrintJob handles POST /v1/print/batch
+func (h *Handlers) SubmitBatchPrintJob(c *gin.Context) {
+	var req print.BatchPrintRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid request: " + err.Error(),
+		})
+		return
+	}
+
+	// Validate each job in the batch
+	for i, job := range req.Jobs {
+		switch job.Type {
+		case "pdf", "raw", "image":
+			// Valid types
+		default:
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":     "Invalid print type. Supported: pdf, raw, image",
+				"job_index": i,
+			})
+			return
+		}
+	}
+
+	// Submit batch
+	resp, err := h.printQueue.SubmitBatch(&req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusAccepted, resp)
 }
 
 // ListJobs handles GET /v1/jobs

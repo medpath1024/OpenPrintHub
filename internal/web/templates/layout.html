@@ -57,9 +57,15 @@
 
     <script>
         // WebSocket connection for real-time updates
+        // Connect to API port (Web port - 1)
         let ws;
         function connectWebSocket() {
-            ws = new WebSocket('ws://' + window.location.host + '/v1/ws');
+            const apiPort = parseInt(window.location.port) - 1 || 16800;
+            const wsUrl = 'ws://' + window.location.hostname + ':' + apiPort + '/v1/ws';
+            ws = new WebSocket(wsUrl);
+            ws.onopen = function() {
+                console.log('WebSocket connected to', wsUrl);
+            };
             ws.onmessage = function(event) {
                 const data = JSON.parse(event.data);
                 if (data.type === 'job_status') {
@@ -68,7 +74,11 @@
                     htmx.trigger('#stats-panel', 'refresh');
                 }
             };
+            ws.onerror = function(err) {
+                console.log('WebSocket error:', err);
+            };
             ws.onclose = function() {
+                console.log('WebSocket closed, reconnecting...');
                 setTimeout(connectWebSocket, 3000);
             };
         }

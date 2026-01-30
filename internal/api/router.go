@@ -72,6 +72,9 @@ func (s *Server) setupAPIRoutes() {
 	// API v1 routes
 	v1 := s.apiRouter.Group("/v1")
 	{
+		// Service info
+		v1.GET("/info", s.handlers.GetInfo)
+
 		// Printers
 		v1.GET("/printers", s.handlers.ListPrinters)
 		v1.GET("/printers/default", s.handlers.GetDefaultPrinter)
@@ -79,8 +82,10 @@ func (s *Server) setupAPIRoutes() {
 
 		// Print jobs
 		v1.POST("/print", s.handlers.SubmitPrintJob)
+		v1.POST("/print/batch", s.handlers.SubmitBatchPrintJob)
 		v1.GET("/jobs", s.handlers.ListJobs)
 		v1.GET("/jobs/:id", s.handlers.GetJobStatus)
+		v1.POST("/jobs/:id/cancel", s.handlers.CancelJob)
 
 		// Stats
 		v1.GET("/stats", s.handlers.GetStats)
@@ -114,6 +119,9 @@ func (s *Server) setupWebRoutes() {
 	s.webRouter.GET("/partials/printers", webHandlers.PrintersPartial)
 	s.webRouter.GET("/partials/jobs", webHandlers.JobsPartial)
 	s.webRouter.GET("/partials/stats", webHandlers.StatsPartial)
+
+	// WebSocket - also available on web port for convenience
+	s.webRouter.GET("/v1/ws", s.handleWebSocket)
 }
 
 // setupStatusCallback registers the status callback for WebSocket updates

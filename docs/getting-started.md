@@ -77,6 +77,9 @@ You should see the OpenPrintHub admin interface displaying a list of connected p
 ### Using cURL to Test the API
 
 ```bash
+# Get service info
+curl http://localhost:16800/v1/info
+
 # Get printer list
 curl http://localhost:16800/v1/printers
 
@@ -87,19 +90,39 @@ curl -X POST http://localhost:16800/v1/print \
     "printer": "Your Printer Name",
     "type": "pdf",
     "data": "BASE64_PDF_DATA",
+    "name": "test-document.pdf",
     "settings": {"copies": 1}
   }'
+
+# Submit batch print
+curl -X POST http://localhost:16800/v1/print/batch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "printer": "Your Printer Name",
+    "jobs": [
+      {"type": "pdf", "data": "BASE64_PDF_DATA", "name": "doc1.pdf"},
+      {"type": "pdf", "data": "BASE64_PDF_DATA", "name": "doc2.pdf"}
+    ]
+  }'
+
+# Cancel a job
+curl -X POST http://localhost:16800/v1/jobs/{job_id}/cancel
 ```
 
 ### JavaScript Integration
 
 ```javascript
+// Get service info
+const infoResponse = await fetch('http://localhost:16800/v1/info');
+const info = await infoResponse.json();
+console.log('OpenPrintHub version:', info.version);
+
 // Get printer list
 const response = await fetch('http://localhost:16800/v1/printers');
 const printers = await response.json();
 console.log('Available printers:', printers);
 
-// Print PDF
+// Print PDF with name
 const printResponse = await fetch('http://localhost:16800/v1/print', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
@@ -107,11 +130,34 @@ const printResponse = await fetch('http://localhost:16800/v1/print', {
     printer: printers[0].name,
     type: 'pdf',
     data: btoa(pdfBinaryData), // Base64 encode
+    name: 'my-document.pdf',   // Job name for identification
     settings: { copies: 1 }
   })
 });
 const result = await printResponse.json();
 console.log('Print job:', result.job_id);
+
+// Batch print multiple documents
+const batchResponse = await fetch('http://localhost:16800/v1/print/batch', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    printer: printers[0].name,
+    jobs: [
+      { type: 'pdf', data: btoa(pdf1Data), name: 'invoice-001.pdf' },
+      { type: 'pdf', data: btoa(pdf2Data), name: 'invoice-002.pdf' }
+    ]
+  })
+});
+const batchResult = await batchResponse.json();
+console.log('Batch submitted:', batchResult.batch_id);
+
+// Cancel a job
+const cancelResponse = await fetch(`http://localhost:16800/v1/jobs/${result.job_id}/cancel`, {
+  method: 'POST'
+});
+const cancelResult = await cancelResponse.json();
+console.log('Job cancelled:', cancelResult.status);
 ```
 
 ## Next Steps

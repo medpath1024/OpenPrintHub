@@ -42,9 +42,15 @@ make lint          # Run linter (requires golangci-lint)
 
 ## Key APIs
 
+- `GET /v1/info` - Service information (version, uptime, downloads)
 - `GET /v1/printers` - List available printers
+- `GET /v1/printers/default` - Get default printer
 - `POST /v1/print` - Submit print job (PDF, raw, image)
+- `POST /v1/print/batch` - Submit batch print jobs
+- `GET /v1/jobs` - List all jobs
 - `GET /v1/jobs/:id` - Get job status
+- `POST /v1/jobs/:id/cancel` - Cancel a job
+- `GET /v1/stats` - Queue statistics
 - `WS /v1/ws` - WebSocket for real-time status updates
 - `/` - Admin dashboard (HTMX-powered)
 

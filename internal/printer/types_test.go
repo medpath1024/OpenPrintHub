@@ -127,6 +127,8 @@ func TestPrintSettings_Struct(t *testing.T) {
 		ColorMode:   "color",
 		Duplex:      "long-edge",
 		FitToPage:   false,
+		DPI:         300,
+		ScaleMode:   "fit",
 	}
 
 	if settings.Copies != 3 {
@@ -147,12 +149,19 @@ func TestPrintSettings_Struct(t *testing.T) {
 	if settings.FitToPage {
 		t.Error("Expected FitToPage to be false")
 	}
+	if settings.DPI != 300 {
+		t.Errorf("Expected DPI 300, got %d", settings.DPI)
+	}
+	if settings.ScaleMode != "fit" {
+		t.Errorf("Expected ScaleMode 'fit', got %s", settings.ScaleMode)
+	}
 }
 
 func TestPrintJob_Struct(t *testing.T) {
 	now := time.Now()
 	job := PrintJob{
 		ID:          "job-123",
+		Name:        "my-document.pdf",
 		PrinterName: "Test Printer",
 		Type:        JobTypePDF,
 		Data:        []byte("test data"),
@@ -163,6 +172,9 @@ func TestPrintJob_Struct(t *testing.T) {
 
 	if job.ID != "job-123" {
 		t.Errorf("Expected ID 'job-123', got %s", job.ID)
+	}
+	if job.Name != "my-document.pdf" {
+		t.Errorf("Expected Name 'my-document.pdf', got %s", job.Name)
 	}
 	if job.PrinterName != "Test Printer" {
 		t.Errorf("Expected PrinterName 'Test Printer', got %s", job.PrinterName)
@@ -185,16 +197,21 @@ func TestJobResult_Struct(t *testing.T) {
 	now := time.Now()
 	result := JobResult{
 		JobID:       "job-123",
+		Name:        "my-document.pdf",
 		Status:      JobStatusCompleted,
 		PrinterName: "Test Printer",
 		Message:     "Print completed",
 		Error:       "",
+		CreatedAt:   now.Add(-2 * time.Minute),
 		StartedAt:   now.Add(-time.Minute),
 		CompletedAt: now,
 	}
 
 	if result.JobID != "job-123" {
 		t.Errorf("Expected JobID 'job-123', got %s", result.JobID)
+	}
+	if result.Name != "my-document.pdf" {
+		t.Errorf("Expected Name 'my-document.pdf', got %s", result.Name)
 	}
 	if result.Status != JobStatusCompleted {
 		t.Errorf("Expected Status JobStatusCompleted, got %s", result.Status)
@@ -207,6 +224,9 @@ func TestJobResult_Struct(t *testing.T) {
 	}
 	if result.Error != "" {
 		t.Errorf("Expected empty Error, got %s", result.Error)
+	}
+	if result.CreatedAt.IsZero() {
+		t.Error("Expected CreatedAt to be set")
 	}
 }
 

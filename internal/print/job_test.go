@@ -410,6 +410,170 @@ func TestPrintResponse_Struct(t *testing.T) {
 	}
 }
 
+func TestJobStore_CreateJob_WithName(t *testing.T) {
+	store := NewJobStore(100)
+
+	testData := []byte("test")
+	b64Data := base64.StdEncoding.EncodeToString(testData)
+
+	req := &PrintRequest{
+		Printer: "Test Printer",
+		Type:    "pdf",
+		Data:    b64Data,
+		Name:    "my-document.pdf",
+	}
+
+	job, err := store.CreateJob(req)
+	if err != nil {
+		t.Fatalf("CreateJob failed: %v", err)
+	}
+
+	if job.Name != "my-document.pdf" {
+		t.Errorf("Expected name 'my-document.pdf', got '%s'", job.Name)
+	}
+
+	// Verify name in result
+	entry, _ := store.GetJob(job.ID)
+	if entry.Result.Name != "my-document.pdf" {
+		t.Errorf("Expected result name 'my-document.pdf', got '%s'", entry.Result.Name)
+	}
+}
+
+func TestJobStore_CreateJob_AutoName(t *testing.T) {
+	store := NewJobStore(100)
+
+	testData := []byte("test")
+	b64Data := base64.StdEncoding.EncodeToString(testData)
+
+	req := &PrintRequest{
+		Printer: "Test Printer",
+		Type:    "pdf",
+		Data:    b64Data,
+		// No name provided
+	}
+
+	job, err := store.CreateJob(req)
+	if err != nil {
+		t.Fatalf("CreateJob failed: %v", err)
+	}
+
+	// Should auto-generate a name starting with type
+	if job.Name == "" {
+		t.Error("Expected auto-generated name, got empty string")
+	}
+	if len(job.Name) < 3 {
+		t.Errorf("Expected meaningful auto-generated name, got '%s'", job.Name)
+	}
+}
+
+func TestJobStore_CreateJob_ImageDPI(t *testing.T) {
+	store := NewJobStore(100)
+
+	testData := []byte("test")
+	b64Data := base64.StdEncoding.EncodeToString(testData)
+
+	req := &PrintRequest{
+		Printer:  "Test Printer",
+		Type:     "image",
+		Data:     b64Data,
+		Settings: printer.PrintSettings{}, // Empty settings
+	}
+
+	job, err := store.CreateJob(req)
+	if err != nil {
+		t.Fatalf("CreateJob failed: %v", err)
+	}
+
+	// Should have default DPI for image type
+	if job.Settings.DPI != 300 {
+		t.Errorf("Expected default DPI 300 for image, got %d", job.Settings.DPI)
+	}
+}
+
+func TestJobStore_CancelJob(t *testing.T) {
+	store := NewJobStore(100)
+
+	testData := []byte("test")
+	b64Data := base64.StdEncoding.EncodeToString(testData)
+
+	req := &PrintRequest{
+		Printer: "Test Printer",
+		Type:    "pdf",
+		Data:    b64Data,
+	}
+
+	job, _ := store.CreateJob(req)
+
+	// Cancel the queued job
+	result, err := store.CancelJob(job.ID)
+	if err != nil {
+		t.Fatalf("CancelJob failed: %v", err)
+	}
+
+	if result.Status != printer.JobStatusCancelled {
+		t.Errorf("Expected status cancelled, got %s", result.Status)
+	}
+	if result.Message != "Cancelled by user" {
+		t.Errorf("Expected message 'Cancelled by user', got '%s'", result.Message)
+	}
+	if result.CompletedAt.IsZero() {
+		t.Error("Expected CompletedAt to be set")
+	}
+}
+
+func TestJobStore_CancelJob_NotFound(t *testing.T) {
+	store := NewJobStore(100)
+
+	_, err := store.CancelJob("nonexistent")
+	if err == nil {
+		t.Error("Expected error for non-existent job")
+	}
+}
+
+func TestJobStore_CancelJob_AlreadyCompleted(t *testing.T) {
+	store := NewJobStore(100)
+
+	testData := []byte("test")
+	b64Data := base64.StdEncoding.EncodeToString(testData)
+
+	req := &PrintRequest{
+		Printer: "Test Printer",
+		Type:    "pdf",
+		Data:    b64Data,
+	}
+
+	job, _ := store.CreateJob(req)
+
+	// Complete the job first
+	store.UpdateJobStatus(job.ID, printer.JobStatusCompleted, "Done", nil)
+
+	// Try to cancel
+	_, err := store.CancelJob(job.ID)
+	if err == nil {
+		t.Error("Expected error when cancelling completed job")
+	}
+}
+
+func TestBatchPrintRequest_Struct(t *testing.T) {
+	req := BatchPrintRequest{
+		Printer: "Test Printer",
+		Jobs: []BatchPrintJobItem{
+			{Type: "pdf", Data: "dGVzdA==", Name: "doc1"},
+			{Type: "image", Data: "dGVzdA=="},
+		},
+	}
+
+	if req.Printer != "Test Printer" {
+		t.Errorf("Expected Printer 'Test Printer', got %s", req.Printer)
+	}
+	if len(req.Jobs) != 2 {
+		t.Errorf("Expected 2 jobs, got %d", len(req.Jobs))
+	}
+	if req.Jobs[0].Name != "doc1" {
+		t.Errorf("Expected first job name 'doc1', got '%s'", req.Jobs[0].Name)
+	}
+}
+
 // Helper error type for testing
 type testError struct {
 	msg string

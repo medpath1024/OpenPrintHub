@@ -42,6 +42,9 @@ type PrintSettings struct {
 	ColorMode   string `json:"color_mode,omitempty"`  // color, grayscale, mono
 	Duplex      string `json:"duplex,omitempty"`      // none, long-edge, short-edge
 	FitToPage   bool   `json:"fit_to_page,omitempty"`
+	// Image-specific settings
+	DPI       int    `json:"dpi,omitempty"`        // Image DPI (default: 300)
+	ScaleMode string `json:"scale_mode,omitempty"` // fit, fill, stretch, none
 }
 
 // DefaultSettings returns default print settings
@@ -56,6 +59,7 @@ func DefaultSettings() PrintSettings {
 // PrintJob represents a print job to be submitted
 type PrintJob struct {
 	ID          string        `json:"id"`
+	Name        string        `json:"name,omitempty"` // Job name for identification
 	PrinterName string        `json:"printer"`
 	Type        PrintJobType  `json:"type"`
 	Data        []byte        `json:"-"`        // Raw binary data (not serialized in JSON)
@@ -79,10 +83,12 @@ const (
 // JobResult contains the result of a print job
 type JobResult struct {
 	JobID       string    `json:"job_id"`
+	Name        string    `json:"name,omitempty"` // Job name for identification
 	Status      JobStatus `json:"status"`
 	PrinterName string    `json:"printer"`
 	Message     string    `json:"message,omitempty"`
 	Error       string    `json:"error,omitempty"`
+	CreatedAt   time.Time `json:"created_at,omitempty"`
 	StartedAt   time.Time `json:"started_at,omitempty"`
 	CompletedAt time.Time `json:"completed_at,omitempty"`
 }

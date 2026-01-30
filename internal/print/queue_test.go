@@ -569,3 +569,170 @@ func BenchmarkQueue_Submit(b *testing.B) {
 		q.Submit(req)
 	}
 }
+
+func TestQueue_CancelJob(t *testing.T) {
+	mockSvc := NewMockPrinterService()
+	mockSvc.PrintDelay = 500 * time.Millisecond // Slow processing
+	q := NewQueue(mockSvc)
+	defer q.Stop()
+
+	testData := []byte("test")
+	b64Data := base64.StdEncoding.EncodeToString(testData)
+
+	// Submit multiple jobs to queue
+	var jobIDs []string
+	for i := 0; i < 3; i++ {
+		req := &PrintRequest{
+			Printer: "printer1",
+			Type:    "pdf",
+			Data:    b64Data,
+			Name:    "test-job-" + string(rune('A'+i)),
+		}
+		resp, _ := q.Submit(req)
+		jobIDs = append(jobIDs, resp.JobID)
+	}
+
+	// Try to cancel a queued job (should succeed)
+	result, err := q.CancelJob(jobIDs[2])
+	if err != nil {
+		t.Errorf("CancelJob failed: %v", err)
+	}
+	if result.Status != printer.JobStatusCancelled {
+		t.Errorf("Expected status cancelled, got %s", result.Status)
+	}
+}
+
+func TestQueue_CancelJob_NotFound(t *testing.T) {
+	mockSvc := NewMockPrinterService()
+	q := NewQueue(mockSvc)
+	defer q.Stop()
+
+	_, err := q.CancelJob("nonexistent-job-id")
+	if err == nil {
+		t.Error("Expected error for non-existent job")
+	}
+}
+
+func TestQueue_SubmitBatch(t *testing.T) {
+	mockSvc := NewMockPrinterService()
+	q := NewQueue(mockSvc)
+	defer q.Stop()
+
+	testData := []byte("test")
+	b64Data := base64.StdEncoding.EncodeToString(testData)
+
+	batchReq := &BatchPrintRequest{
+		Printer: "printer1",
+		Jobs: []BatchPrintJobItem{
+			{Type: "pdf", Data: b64Data, Name: "doc1.pdf"},
+			{Type: "pdf", Data: b64Data, Name: "doc2.pdf"},
+			{Type: "image", Data: b64Data},
+		},
+	}
+
+	resp, err := q.SubmitBatch(batchReq)
+	if err != nil {
+		t.Fatalf("SubmitBatch failed: %v", err)
+	}
+
+	if resp.Total != 3 {
+		t.Errorf("Expected total 3, got %d", resp.Total)
+	}
+	if resp.Queued != 3 {
+		t.Errorf("Expected queued 3, got %d", resp.Queued)
+	}
+	if resp.Failed != 0 {
+		t.Errorf("Expected failed 0, got %d", resp.Failed)
+	}
+	if len(resp.Jobs) != 3 {
+		t.Errorf("Expected 3 job responses, got %d", len(resp.Jobs))
+	}
+	if resp.BatchID == "" {
+		t.Error("Expected batch ID to be set")
+	}
+
+	// Verify all jobs have IDs
+	for i, job := range resp.Jobs {
+		if job.JobID == "" {
+			t.Errorf("Job %d has empty ID", i)
+		}
+		if job.Status != printer.JobStatusQueued {
+			t.Errorf("Job %d has unexpected status: %s", i, job.Status)
+		}
+	}
+
+	// Wait for jobs to complete
+	time.Sleep(500 * time.Millisecond)
+
+	stats := q.Stats()
+	if stats.CompletedJobs < 3 {
+		t.Errorf("Expected at least 3 completed jobs, got %d", stats.CompletedJobs)
+	}
+}
+
+func TestQueue_SubmitBatch_WithInvalidData(t *testing.T) {
+	mockSvc := NewMockPrinterService()
+	q := NewQueue(mockSvc)
+	defer q.Stop()
+
+	testData := []byte("test")
+	b64Data := base64.StdEncoding.EncodeToString(testData)
+
+	batchReq := &BatchPrintRequest{
+		Printer: "printer1",
+		Jobs: []BatchPrintJobItem{
+			{Type: "pdf", Data: b64Data, Name: "doc1.pdf"},
+			{Type: "pdf", Data: "invalid-base64!!!", Name: "doc2.pdf"},
+		},
+	}
+
+	resp, err := q.SubmitBatch(batchReq)
+	if err != nil {
+		t.Fatalf("SubmitBatch returned error: %v", err)
+	}
+
+	// First job should succeed, second should fail
+	if resp.Total != 2 {
+		t.Errorf("Expected total 2, got %d", resp.Total)
+	}
+	if resp.Queued != 1 {
+		t.Errorf("Expected queued 1, got %d", resp.Queued)
+	}
+	if resp.Failed != 1 {
+		t.Errorf("Expected failed 1, got %d", resp.Failed)
+	}
+}
+
+func TestQueue_Submit_WithName(t *testing.T) {
+	mockSvc := NewMockPrinterService()
+	q := NewQueue(mockSvc)
+	defer q.Stop()
+
+	testData := []byte("test")
+	b64Data := base64.StdEncoding.EncodeToString(testData)
+
+	req := &PrintRequest{
+		Printer: "printer1",
+		Type:    "pdf",
+		Data:    b64Data,
+		Name:    "my-important-document.pdf",
+	}
+
+	resp, err := q.Submit(req)
+	if err != nil {
+		t.Fatalf("Submit failed: %v", err)
+	}
+
+	// Verify name is stored
+	entry, ok := q.GetJob(resp.JobID)
+	if !ok {
+		t.Fatal("Job not found")
+	}
+
+	if entry.Job.Name != "my-important-document.pdf" {
+		t.Errorf("Expected name 'my-important-document.pdf', got '%s'", entry.Job.Name)
+	}
+	if entry.Result.Name != "my-important-document.pdf" {
+		t.Errorf("Expected result name 'my-important-document.pdf', got '%s'", entry.Result.Name)
+	}
+}

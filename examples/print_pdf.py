@@ -3,11 +3,12 @@
 OpenPrintHub - PDF Printing Example
 
 Usage:
-    python print_pdf.py <pdf_file> [printer_name] [copies]
+    python print_pdf.py <pdf_file> [printer_name] [copies] [job_name]
 
 Examples:
     python print_pdf.py invoice.pdf
     python print_pdf.py report.pdf "HP LaserJet Pro" 2
+    python print_pdf.py report.pdf "HP LaserJet Pro" 1 "Monthly Report"
 """
 
 import base64
@@ -24,7 +25,7 @@ def get_printers():
     return response.json()
 
 
-def print_pdf(file_path: str, printer_name: str = None, copies: int = 1):
+def print_pdf(file_path: str, printer_name: str = None, copies: int = 1, job_name: str = None):
     """
     Print a PDF file.
     
@@ -32,6 +33,7 @@ def print_pdf(file_path: str, printer_name: str = None, copies: int = 1):
         file_path: Path to the PDF file
         printer_name: Name of printer (uses default if not specified)
         copies: Number of copies to print
+        job_name: Optional name for the print job (for identification)
     
     Returns:
         Job response dict with job_id and status
@@ -47,6 +49,10 @@ def print_pdf(file_path: str, printer_name: str = None, copies: int = 1):
         printer_name = default_printer['name']
         print(f"Using default printer: {printer_name}")
     
+    # Use filename as job name if not specified
+    if not job_name:
+        job_name = file_path.split('/')[-1].split('\\')[-1]
+    
     # Read and encode PDF
     with open(file_path, 'rb') as f:
         pdf_base64 = base64.b64encode(f.read()).decode('utf-8')
@@ -58,6 +64,7 @@ def print_pdf(file_path: str, printer_name: str = None, copies: int = 1):
             'printer': printer_name,
             'type': 'pdf',
             'data': pdf_base64,
+            'name': job_name,
             'settings': {
                 'copies': copies,
                 'orientation': 'portrait',
@@ -65,6 +72,20 @@ def print_pdf(file_path: str, printer_name: str = None, copies: int = 1):
             }
         }
     )
+    response.raise_for_status()
+    return response.json()
+
+
+def cancel_job(job_id: str):
+    """Cancel a print job."""
+    response = requests.post(f"{OPH_URL}/v1/jobs/{job_id}/cancel")
+    response.raise_for_status()
+    return response.json()
+
+
+def get_service_info():
+    """Get OpenPrintHub service information."""
+    response = requests.get(f"{OPH_URL}/v1/info")
     response.raise_for_status()
     return response.json()
 
@@ -77,9 +98,14 @@ def main():
     file_path = sys.argv[1]
     printer_name = sys.argv[2] if len(sys.argv) > 2 else None
     copies = int(sys.argv[3]) if len(sys.argv) > 3 else 1
+    job_name = sys.argv[4] if len(sys.argv) > 4 else None
     
     try:
-        result = print_pdf(file_path, printer_name, copies)
+        # Show service info
+        info = get_service_info()
+        print(f"Connected to OpenPrintHub v{info['version']} ({info['platform']})")
+        
+        result = print_pdf(file_path, printer_name, copies, job_name)
         print(f"Print job submitted successfully!")
         print(f"  Job ID: {result['job_id']}")
         print(f"  Status: {result['status']}")
