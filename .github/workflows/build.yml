@@ -101,7 +101,7 @@ jobs:
             -o build/oph-${{ matrix.suffix }} ./cmd/oph
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: oph-${{ matrix.suffix }}
           path: build/oph-${{ matrix.suffix }}
