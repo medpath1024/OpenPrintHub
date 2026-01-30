@@ -25,13 +25,14 @@ func TestIntegration_FullPrintJobFlow(t *testing.T) {
 
 	config := Config{
 		Port:         12345,
+		WebPort:      12346,
 		AllowOrigins: "*",
 		PrinterSvc:   mockSvc,
 		PrintQueue:   queue,
 	}
 
 	server := NewServer(config)
-	router := server.Router()
+	router := server.APIRouter()
 
 	// 1. Check health
 	req := httptest.NewRequest("GET", "/health", nil)
@@ -141,6 +142,7 @@ func TestIntegration_WebSocketJobStatusUpdates(t *testing.T) {
 
 	config := Config{
 		Port:         12345,
+		WebPort:      12346,
 		AllowOrigins: "*",
 		PrinterSvc:   mockSvc,
 		PrintQueue:   queue,
@@ -149,7 +151,7 @@ func TestIntegration_WebSocketJobStatusUpdates(t *testing.T) {
 	server := NewServer(config)
 
 	// Create test HTTP server
-	testServer := httptest.NewServer(server.Router())
+	testServer := httptest.NewServer(server.APIRouter())
 	defer testServer.Close()
 
 	// Connect WebSocket
@@ -176,7 +178,7 @@ func TestIntegration_WebSocketJobStatusUpdates(t *testing.T) {
 	req := httptest.NewRequest("POST", "/v1/print", strings.NewReader(reqBody))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-	server.Router().ServeHTTP(w, req)
+	server.APIRouter().ServeHTTP(w, req)
 
 	if w.Code != http.StatusAccepted {
 		t.Fatalf("Submit job failed: %d", w.Code)
@@ -213,13 +215,14 @@ func TestIntegration_ConcurrentPrintJobs(t *testing.T) {
 
 	config := Config{
 		Port:         12345,
+		WebPort:      12346,
 		AllowOrigins: "*",
 		PrinterSvc:   mockSvc,
 		PrintQueue:   queue,
 	}
 
 	server := NewServer(config)
-	router := server.Router()
+	router := server.APIRouter()
 
 	testData := []byte("test")
 	b64Data := base64.StdEncoding.EncodeToString(testData)
@@ -296,13 +299,14 @@ func TestIntegration_CORSHeaders(t *testing.T) {
 
 	config := Config{
 		Port:         12345,
+		WebPort:      12346,
 		AllowOrigins: "http://example.com,http://app.local",
 		PrinterSvc:   mockSvc,
 		PrintQueue:   queue,
 	}
 
 	server := NewServer(config)
-	router := server.Router()
+	router := server.APIRouter()
 
 	// Test allowed origin
 	req := httptest.NewRequest("GET", "/v1/printers", nil)
@@ -332,13 +336,14 @@ func TestIntegration_SecurityHeaders(t *testing.T) {
 
 	config := Config{
 		Port:         12345,
+		WebPort:      12346,
 		AllowOrigins: "*",
 		PrinterSvc:   mockSvc,
 		PrintQueue:   queue,
 	}
 
 	server := NewServer(config)
-	router := server.Router()
+	router := server.APIRouter()
 
 	req := httptest.NewRequest("GET", "/v1/printers", nil)
 	w := httptest.NewRecorder()
@@ -366,13 +371,14 @@ func TestIntegration_PreflightRequest(t *testing.T) {
 
 	config := Config{
 		Port:         12345,
+		WebPort:      12346,
 		AllowOrigins: "*",
 		PrinterSvc:   mockSvc,
 		PrintQueue:   queue,
 	}
 
 	server := NewServer(config)
-	router := server.Router()
+	router := server.APIRouter()
 
 	// Send preflight OPTIONS request
 	req := httptest.NewRequest("OPTIONS", "/v1/print", nil)
@@ -398,13 +404,14 @@ func TestIntegration_PrintJobTypes(t *testing.T) {
 
 	config := Config{
 		Port:         12345,
+		WebPort:      12346,
 		AllowOrigins: "*",
 		PrinterSvc:   mockSvc,
 		PrintQueue:   queue,
 	}
 
 	server := NewServer(config)
-	router := server.Router()
+	router := server.APIRouter()
 
 	types := []struct {
 		name string
@@ -444,13 +451,14 @@ func TestIntegration_ErrorHandling(t *testing.T) {
 
 	config := Config{
 		Port:         12345,
+		WebPort:      12346,
 		AllowOrigins: "*",
 		PrinterSvc:   mockSvc,
 		PrintQueue:   queue,
 	}
 
 	server := NewServer(config)
-	router := server.Router()
+	router := server.APIRouter()
 
 	tests := []struct {
 		name       string
@@ -523,13 +531,14 @@ func TestIntegration_PrintSettings(t *testing.T) {
 
 	config := Config{
 		Port:         12345,
+		WebPort:      12346,
 		AllowOrigins: "*",
 		PrinterSvc:   mockSvc,
 		PrintQueue:   queue,
 	}
 
 	server := NewServer(config)
-	router := server.Router()
+	router := server.APIRouter()
 
 	testData := []byte("test")
 	b64Data := base64.StdEncoding.EncodeToString(testData)
@@ -582,13 +591,14 @@ func BenchmarkIntegration_SubmitAndComplete(b *testing.B) {
 
 	config := Config{
 		Port:         12345,
+		WebPort:      12346,
 		AllowOrigins: "*",
 		PrinterSvc:   mockSvc,
 		PrintQueue:   queue,
 	}
 
 	server := NewServer(config)
-	router := server.Router()
+	router := server.APIRouter()
 
 	testData := []byte("test")
 	b64Data := base64.StdEncoding.EncodeToString(testData)
@@ -614,13 +624,14 @@ func BenchmarkIntegration_HealthCheck(b *testing.B) {
 
 	config := Config{
 		Port:         12345,
+		WebPort:      12346,
 		AllowOrigins: "*",
 		PrinterSvc:   mockSvc,
 		PrintQueue:   queue,
 	}
 
 	server := NewServer(config)
-	router := server.Router()
+	router := server.APIRouter()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

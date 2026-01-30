@@ -5,7 +5,7 @@ A high-performance, cross-platform silent printing service written in Go. An ope
 ## Features
 
 - **Silent Printing**: Print PDF documents without user interaction
-- **Cross-Platform**: Supports Windows and macOS
+- **Cross-Platform**: Supports Windows, macOS, and Linux
 - **RESTful API**: Easy integration with any web application
 - **WebSocket**: Real-time print job status updates
 - **Admin Dashboard**: Built-in web interface for printer management
@@ -29,10 +29,12 @@ make build
 
 ### Usage
 
-Once running, OpenPrintHub listens on `http://localhost:16800`:
+Once running, OpenPrintHub listens on two ports:
 
-- **Admin Dashboard**: Open http://localhost:16800 in your browser
-- **API Documentation**: See [API Reference](#api-reference) below
+- **API Server**: `http://localhost:16800` - For application integration
+- **Admin Dashboard**: `http://localhost:16801` - Web interface for printer management
+
+See [API Reference](#api-reference) below for API documentation.
 
 ## API Reference
 
@@ -99,7 +101,8 @@ ws.onmessage = (event) => {
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `-port` | 16800 | HTTP server port |
+| `-port` | 16800 | API server port |
+| `-web-port` | port+1 | Web admin dashboard port (default: 16801) |
 | `-cors` | `*` | Allowed CORS origins (comma-separated) |
 | `-version` | - | Show version and exit |
 
@@ -117,7 +120,7 @@ ws.onmessage = (event) => {
 |----------|--------------|--------|
 | macOS | CUPS/lp command | ✅ Supported |
 | Windows | winspool API | ✅ Supported |
-| Linux | CUPS (future) | 🚧 Planned |
+| Linux | CUPS/lp command | ✅ Supported |
 
 ## Development
 

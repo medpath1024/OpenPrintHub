@@ -21,7 +21,7 @@ cmd/oph/           # Application entry point
 internal/
   api/             # REST API handlers, middleware, router, websocket
   print/           # Print job queue, PDF handling, job management
-  printer/         # Platform-specific printer abstraction (darwin/windows)
+  printer/         # Platform-specific printer abstraction (darwin/linux/windows)
   web/             # Admin dashboard (templates, static assets)
 docs/              # Documentation
 build/             # Compiled binaries
@@ -52,7 +52,8 @@ make lint          # Run linter (requires golangci-lint)
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `-port` | 16800 | HTTP server port |
+| `-port` | 16800 | API server port |
+| `-web-port` | port+1 | Web admin dashboard port |
 | `-cors` | `*` | Allowed CORS origins |
 | `-version` | - | Show version and exit |
 
@@ -60,7 +61,7 @@ make lint          # Run linter (requires golangci-lint)
 
 - **macOS**: Uses CUPS/lp command (`internal/printer/printer_darwin.go`)
 - **Windows**: Uses winspool API (`internal/printer/printer_windows.go`)
-- **Linux**: Planned (CUPS)
+- **Linux**: Uses CUPS/lp command (`internal/printer/printer_linux.go`)
 
 ## Development Guidelines
 
