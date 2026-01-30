@@ -1,0 +1,78 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792]
+   /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 1031 >>
+stream
+BT
+/F1 24 Tf
+50 750 Td
+(INVOICE) Tj
+0 -40 Td
+/F1 12 Tf
+(Invoice Number: INV-20260130-2599) Tj
+0 -20 Td
+(Date: January 30, 2026) Tj
+0 -20 Td
+(Due: Net 30) Tj
+0 -40 Td
+(Bill To:) Tj
+0 -20 Td
+(Acme Corporation) Tj
+0 -15 Td
+(123 Business Street) Tj
+0 -15 Td
+(New York, NY 10001) Tj
+0 -40 Td
+(----------------------------------------) Tj
+0 -20 Td
+(Description                    Qty    Amount) Tj
+0 -15 Td
+(----------------------------------------) Tj
+0 -20 Td
+(Web Development Services       40    $6,000.00) Tj
+0 -15 Td
+(UI/UX Design                   20    $2,400.00) Tj
+0 -15 Td
+(Server Hosting \(Annual\)        1      $500.00) Tj
+0 -15 Td
+(Technical Support              10      $800.00) Tj
+0 -20 Td
+(----------------------------------------) Tj
+0 -20 Td
+(                        Subtotal: $9,700.00) Tj
+0 -15 Td
+(                        Tax \(8%\):   $776.00) Tj
+0 -15 Td
+(                        TOTAL:   $10,476.00) Tj
+0 -40 Td
+(Thank you for your business!) Tj
+0 -30 Td
+/F1 8 Tf
+(Sample invoice for testing OpenPrintHub) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000266 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+0
+%%EOF

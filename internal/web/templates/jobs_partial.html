@@ -1,0 +1,70 @@
+{{define "jobs_partial.html"}}
+{{if .Jobs}}
+<div class="overflow-x-auto">
+    <table class="w-full">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job ID</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Printer</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Message</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Completed</th>
+            </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+            {{range .Jobs}}
+            <tr class="hover:bg-gray-50">
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="text-sm font-mono text-gray-600">{{slice .Result.JobID 0 8}}...</span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="text-sm text-gray-800">{{.Result.PrinterName}}</span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    {{if eq .Result.Status "completed"}}
+                    <span class="status-badge status-ready">Completed</span>
+                    {{else if eq .Result.Status "failed"}}
+                    <span class="status-badge status-error">Failed</span>
+                    {{else if eq .Result.Status "processing"}}
+                    <span class="status-badge status-busy">Processing</span>
+                    {{else if eq .Result.Status "printing"}}
+                    <span class="status-badge status-busy">Printing</span>
+                    {{else if eq .Result.Status "queued"}}
+                    <span class="status-badge status-unknown">Queued</span>
+                    {{else}}
+                    <span class="status-badge status-unknown">{{.Result.Status}}</span>
+                    {{end}}
+                </td>
+                <td class="px-6 py-4">
+                    <span class="text-sm text-gray-500">
+                        {{if .Result.Error}}
+                        <span class="text-red-600">{{.Result.Error}}</span>
+                        {{else}}
+                        {{.Result.Message}}
+                        {{end}}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="text-sm text-gray-500">
+                        {{if not .Result.CompletedAt.IsZero}}
+                        {{.Result.CompletedAt.Format "15:04:05"}}
+                        {{else}}
+                        -
+                        {{end}}
+                    </span>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{else}}
+<div class="px-6 py-12 text-center text-gray-500">
+    <svg class="w-12 h-12 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+    </svg>
+    <p>No print jobs yet</p>
+    <p class="text-sm mt-2">Submit a print job using the API</p>
+</div>
+{{end}}
+{{end}}

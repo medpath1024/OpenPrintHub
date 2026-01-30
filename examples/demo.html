@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenPrintHub Demo</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #555;
+            margin-top: 30px;
+        }
+        .status {
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #333;
+        }
+        select, input, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        textarea {
+            height: 100px;
+            font-family: monospace;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        button.secondary {
+            background: #6c757d;
+        }
+        button.secondary:hover {
+            background: #545b62;
+        }
+        .result {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .result.success {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+        .result.error {
+            border-color: #dc3545;
+            background: #f8d7da;
+        }
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #dee2e6;
+            margin-bottom: 20px;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 14px;
+            color: #666;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+        }
+        .tab.active {
+            color: #007bff;
+            border-bottom-color: #007bff;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .printer-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        .printer-item {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .printer-item:hover {
+            border-color: #007bff;
+            background: #f0f7ff;
+        }
+        .printer-item.selected {
+            border-color: #007bff;
+            background: #e7f1ff;
+        }
+        .printer-item .name {
+            font-weight: 500;
+        }
+        .printer-item .status {
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            display: inline-block;
+            margin-top: 5px;
+        }
+        .printer-item .status.Ready {
+            background: #d4edda;
+            color: #155724;
+        }
+        .printer-item .status.Offline {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .ws-log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            height: 150px;
+            overflow-y: auto;
+        }
+        .ws-log .timestamp {
+            color: #6a9955;
+        }
+        .ws-log .status {
+            padding: 0;
+            background: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>OpenPrintHub Demo</h1>
+    
+    <div id="connectionStatus" class="status disconnected">
+        Connecting to OpenPrintHub...
+    </div>
+
+    <div class="card">
+        <h2>Available Printers</h2>
+        <div id="printerList" class="printer-list">
+            <p>Loading printers...</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="tabs">
+            <button class="tab active" data-tab="pdf">PDF</button>
+            <button class="tab" data-tab="receipt">Receipt (ESC/POS)</button>
+            <button class="tab" data-tab="label">Label (ZPL)</button>
+            <button class="tab" data-tab="raw">Raw Commands</button>
+        </div>
+
+        <!-- PDF Tab -->
+        <div id="pdf" class="tab-content active">
+            <div class="form-group">
+                <label>PDF File</label>
+                <input type="file" id="pdfFile" accept=".pdf">
+            </div>
+            <div class="form-group">
+                <label>Copies</label>
+                <input type="number" id="pdfCopies" value="1" min="1" max="99">
+            </div>
+            <button onclick="printPDF()">Print PDF</button>
+        </div>
+
+        <!-- Receipt Tab -->
+        <div id="receipt" class="tab-content">
+            <div class="form-group">
+                <label>Store Name</label>
+                <input type="text" id="storeName" value="DEMO STORE">
+            </div>
+            <div class="form-group">
+                <label>Items (one per line: name,price)</label>
+                <textarea id="receiptItems">Coffee,4.50
+Sandwich,8.99
+Cookie,2.50</textarea>
+            </div>
+            <button onclick="printReceipt()">Print Receipt</button>
+        </div>
+
+        <!-- Label Tab -->
+        <div id="label" class="tab-content">
+            <div class="form-group">
+                <label>Product Name</label>
+                <input type="text" id="labelName" value="Sample Product">
+            </div>
+            <div class="form-group">
+                <label>SKU</label>
+                <input type="text" id="labelSKU" value="SKU-12345">
+            </div>
+            <div class="form-group">
+                <label>Barcode</label>
+                <input type="text" id="labelBarcode" value="1234567890123">
+            </div>
+            <div class="form-group">
+                <label>Price</label>
+                <input type="number" id="labelPrice" value="29.99" step="0.01">
+            </div>
+            <button onclick="printLabel()">Print Label (ZPL)</button>
+        </div>
+
+        <!-- Raw Tab -->
+        <div id="raw" class="tab-content">
+            <div class="form-group">
+                <label>Raw Commands (Base64 or plain text)</label>
+                <textarea id="rawCommands" placeholder="Enter ESC/POS, ZPL, TSPL commands...">^XA
+^FO50,50^A0N,50,50^FDHello World^FS
+^FO50,150^BY2^BCN,100,Y,N,N^FD123456789^FS
+^XZ</textarea>
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="rawIsBase64"> Data is Base64 encoded
+                </label>
+            </div>
+            <button onclick="printRaw()">Send Raw</button>
+        </div>
+
+        <div id="result" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="card">
+        <h2>WebSocket Status</h2>
+        <div id="wsLog" class="ws-log"></div>
+    </div>
+
+    <script>
+        const OPH_URL = 'http://localhost:16800';
+        const WS_URL = 'ws://localhost:16800/v1/ws';
+        
+        let selectedPrinter = null;
+        let ws = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            checkConnection();
+            loadPrinters();
+            connectWebSocket();
+            setupTabs();
+        });
+
+        // Tab switching
+        function setupTabs() {
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    tab.classList.add('active');
+                    document.getElementById(tab.dataset.tab).classList.add('active');
+                });
+            });
+        }
+
+        // Check connection
+        async function checkConnection() {
+            try {
+                const response = await fetch(`${OPH_URL}/health`);
+                const data = await response.json();
+                document.getElementById('connectionStatus').className = 'status connected';
+                document.getElementById('connectionStatus').textContent = 
+                    `Connected to OpenPrintHub v${data.version}`;
+            } catch (e) {
+                document.getElementById('connectionStatus').className = 'status disconnected';
+                document.getElementById('connectionStatus').textContent = 
+                    'Cannot connect to OpenPrintHub. Make sure it is running on localhost:16800';
+            }
+        }
+
+        // Load printers
+        async function loadPrinters() {
+            try {
+                const response = await fetch(`${OPH_URL}/v1/printers`);
+                const printers = await response.json();
+                
+                const container = document.getElementById('printerList');
+                if (printers.length === 0) {
+                    container.innerHTML = '<p>No printers found</p>';
+                    return;
+                }
+                
+                container.innerHTML = printers.map(p => `
+                    <div class="printer-item ${p.is_default ? 'selected' : ''}" 
+                         data-name="${p.name}" onclick="selectPrinter(this, '${p.name}')">
+                        <div class="name">${p.name}</div>
+                        <span class="status ${p.status}">${p.status}</span>
+                        ${p.is_default ? ' (default)' : ''}
+                    </div>
+                `).join('');
+                
+                // Select default printer
+                const defaultPrinter = printers.find(p => p.is_default) || printers[0];
+                selectedPrinter = defaultPrinter.name;
+            } catch (e) {
+                document.getElementById('printerList').innerHTML = 
+                    '<p>Error loading printers</p>';
+            }
+        }
+
+        function selectPrinter(element, name) {
+            document.querySelectorAll('.printer-item').forEach(el => 
+                el.classList.remove('selected'));
+            element.classList.add('selected');
+            selectedPrinter = name;
+        }
+
+        // WebSocket
+        function connectWebSocket() {
+            ws = new WebSocket(WS_URL);
+            
+            ws.onopen = () => {
+                logWS('Connected to WebSocket');
+            };
+            
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                if (msg.type === 'job_status') {
+                    logWS(`Job ${msg.data.job_id.slice(0, 8)}...: ${msg.data.status} - ${msg.data.message || ''}`);
+                }
+            };
+            
+            ws.onclose = () => {
+                logWS('WebSocket disconnected, reconnecting...');
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+
+        function logWS(message) {
+            const log = document.getElementById('wsLog');
+            const time = new Date().toLocaleTimeString();
+            log.innerHTML += `<div><span class="timestamp">[${time}]</span> ${message}</div>`;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // Show result
+        function showResult(data, isError = false) {
+            const result = document.getElementById('result');
+            result.style.display = 'block';
+            result.className = `result ${isError ? 'error' : 'success'}`;
+            result.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+        }
+
+        // Print PDF
+        async function printPDF() {
+            const fileInput = document.getElementById('pdfFile');
+            const copies = parseInt(document.getElementById('pdfCopies').value);
+            
+            if (!fileInput.files.length) {
+                showResult('Please select a PDF file', true);
+                return;
+            }
+            
+            if (!selectedPrinter) {
+                showResult('Please select a printer', true);
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = async () => {
+                const base64 = reader.result.split(',')[1];
+                
+                try {
+                    const response = await fetch(`${OPH_URL}/v1/print`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            printer: selectedPrinter,
+                            type: 'pdf',
+                            data: base64,
+                            settings: { copies }
+                        })
+                    });
+                    showResult(await response.json());
+                } catch (e) {
+                    showResult(e.message, true);
+                }
+            };
+            
+            reader.readAsDataURL(file);
+        }
+
+        // Print Receipt (ESC/POS)
+        async function printReceipt() {
+            if (!selectedPrinter) {
+                showResult('Please select a printer', true);
+                return;
+            }
+            
+            const storeName = document.getElementById('storeName').value;
+            const itemsText = document.getElementById('receiptItems').value;
+            const items = itemsText.split('\n')
+                .filter(line => line.trim())
+                .map(line => {
+                    const [name, price] = line.split(',');
+                    return { name: name.trim(), price: parseFloat(price) };
+                });
+            
+            // Build ESC/POS commands
+            const commands = [];
+            
+            // Initialize
+            commands.push(0x1B, 0x40);
+            
+            // Center align
+            commands.push(0x1B, 0x61, 0x01);
+            
+            // Double size
+            commands.push(0x1D, 0x21, 0x11);
+            
+            // Store name
+            commands.push(...new TextEncoder().encode(storeName));
+            commands.push(0x0A, 0x0A);
+            
+            // Normal size
+            commands.push(0x1D, 0x21, 0x00);
+            
+            // Left align
+            commands.push(0x1B, 0x61, 0x00);
+            
+            // Separator
+            commands.push(...new TextEncoder().encode('-'.repeat(32)));
+            commands.push(0x0A);
+            
+            // Items
+            let total = 0;
+            items.forEach(item => {
+                const line = `${item.name.padEnd(22)}$${item.price.toFixed(2).padStart(7)}`;
+                commands.push(...new TextEncoder().encode(line));
+                commands.push(0x0A);
+                total += item.price;
+            });
+            
+            // Total
+            commands.push(...new TextEncoder().encode('-'.repeat(32)));
+            commands.push(0x0A);
+            commands.push(0x1B, 0x45, 0x01); // Bold
+            commands.push(...new TextEncoder().encode(`${'TOTAL'.padEnd(22)}$${total.toFixed(2).padStart(7)}`));
+            commands.push(0x0A);
+            commands.push(0x1B, 0x45, 0x00); // Bold off
+            
+            // Footer
+            commands.push(0x0A);
+            commands.push(0x1B, 0x61, 0x01); // Center
+            commands.push(...new TextEncoder().encode('Thank you!'));
+            commands.push(0x0A, 0x0A, 0x0A);
+            
+            // Cut
+            commands.push(0x1D, 0x56, 0x00);
+            
+            const base64 = btoa(String.fromCharCode(...commands));
+            
+            try {
+                const response = await fetch(`${OPH_URL}/v1/print`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        printer: selectedPrinter,
+                        type: 'raw',
+                        data: base64
+                    })
+                });
+                showResult(await response.json());
+            } catch (e) {
+                showResult(e.message, true);
+            }
+        }
+
+        // Print Label (ZPL)
+        async function printLabel() {
+            if (!selectedPrinter) {
+                showResult('Please select a printer', true);
+                return;
+            }
+            
+            const name = document.getElementById('labelName').value;
+            const sku = document.getElementById('labelSKU').value;
+            const barcode = document.getElementById('labelBarcode').value;
+            const price = document.getElementById('labelPrice').value;
+            
+            const zpl = `^XA
+^FO30,30^A0N,40,40^FD${name}^FS
+^FO30,80^A0N,25,25^FDSKU: ${sku}^FS
+^FO30,120^A0N,35,35^FD$${parseFloat(price).toFixed(2)}^FS
+^FO30,170^BY2^BCN,80,Y,N,N^FD${barcode}^FS
+^XZ`;
+            
+            const base64 = btoa(zpl);
+            
+            try {
+                const response = await fetch(`${OPH_URL}/v1/print`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        printer: selectedPrinter,
+                        type: 'raw',
+                        data: base64
+                    })
+                });
+                showResult(await response.json());
+            } catch (e) {
+                showResult(e.message, true);
+            }
+        }
+
+        // Print Raw
+        async function printRaw() {
+            if (!selectedPrinter) {
+                showResult('Please select a printer', true);
+                return;
+            }
+            
+            let data = document.getElementById('rawCommands').value;
+            const isBase64 = document.getElementById('rawIsBase64').checked;
+            
+            if (!isBase64) {
+                data = btoa(data);
+            }
+            
+            try {
+                const response = await fetch(`${OPH_URL}/v1/print`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        printer: selectedPrinter,
+                        type: 'raw',
+                        data: data
+                    })
+                });
+                showResult(await response.json());
+            } catch (e) {
+                showResult(e.message, true);
+            }
+        }
+    </script>
+</body>
+</html>

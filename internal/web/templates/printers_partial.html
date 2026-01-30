@@ -1,0 +1,47 @@
+{{define "printers_partial.html"}}
+{{if .Printers}}
+<div class="divide-y divide-gray-200">
+    {{range .Printers}}
+    <div class="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
+        <div class="flex items-center gap-4">
+            <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                </svg>
+            </div>
+            <div>
+                <div class="font-medium text-gray-800">
+                    {{.Name}}
+                    {{if .IsDefault}}
+                    <span class="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">Default</span>
+                    {{end}}
+                </div>
+                <div class="text-sm text-gray-500">ID: {{.ID}}</div>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            {{if eq .Status "Ready"}}
+            <span class="status-badge status-ready">Ready</span>
+            {{else if eq .Status "Busy"}}
+            <span class="status-badge status-busy">Busy</span>
+            {{else if eq .Status "Offline"}}
+            <span class="status-badge status-offline">Offline</span>
+            {{else if eq .Status "Error"}}
+            <span class="status-badge status-error">Error</span>
+            {{else}}
+            <span class="status-badge status-unknown">{{.Status}}</span>
+            {{end}}
+        </div>
+    </div>
+    {{end}}
+</div>
+{{else}}
+<div class="px-6 py-12 text-center text-gray-500">
+    <svg class="w-12 h-12 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+    </svg>
+    <p>No printers found</p>
+    <p class="text-sm mt-2">Make sure your printers are connected and configured</p>
+</div>
+{{end}}
+{{end}}
