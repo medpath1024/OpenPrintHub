@@ -23,13 +23,23 @@ func NewHandlers(printerSvc printer.Service, printQueue *print.Queue) *Handlers 
 	}
 }
 
+// PrinterStats holds printer status counts
+type PrinterStats struct {
+	Total   int
+	Ready   int
+	Busy    int
+	Offline int
+	Error   int
+}
+
 // PageData holds common data for all pages
 type PageData struct {
-	Title    string
-	Active   string
-	Printers []printer.PrinterInfo
-	Jobs     []*print.JobEntry
-	Stats    print.QueueStats
+	Title        string
+	Active       string
+	Printers     []printer.PrinterInfo
+	PrinterStats PrinterStats
+	Jobs         []*print.JobEntry
+	Stats        print.QueueStats
 }
 
 // Index handles GET /
@@ -37,11 +47,27 @@ func (h *Handlers) Index(c *gin.Context) {
 	printers, _ := h.printerSvc.List()
 	stats := h.printQueue.Stats()
 
+	// Calculate printer status counts
+	printerStats := PrinterStats{Total: len(printers)}
+	for _, p := range printers {
+		switch p.Status {
+		case "Ready":
+			printerStats.Ready++
+		case "Busy":
+			printerStats.Busy++
+		case "Offline":
+			printerStats.Offline++
+		case "Error":
+			printerStats.Error++
+		}
+	}
+
 	data := PageData{
-		Title:    "Dashboard",
-		Active:   "dashboard",
-		Printers: printers,
-		Stats:    stats,
+		Title:        "Dashboard",
+		Active:       "dashboard",
+		Printers:     printers,
+		PrinterStats: printerStats,
+		Stats:        stats,
 	}
 
 	c.Header("Content-Type", "text/html; charset=utf-8")

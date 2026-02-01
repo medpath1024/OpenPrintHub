@@ -22,17 +22,32 @@
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                     {{if eq .Result.Status "completed"}}
-                    <span class="status-badge status-ready">Completed</span>
+                    <span class="badge badge-green">
+                        <span class="badge-dot bg-green-500"></span>
+                        Completed
+                    </span>
                     {{else if eq .Result.Status "failed"}}
-                    <span class="status-badge status-error">Failed</span>
+                    <span class="badge badge-red">
+                        <span class="badge-dot bg-red-500"></span>
+                        Failed
+                    </span>
                     {{else if eq .Result.Status "processing"}}
-                    <span class="status-badge status-busy">Processing</span>
+                    <span class="badge badge-yellow">
+                        <span class="badge-dot bg-yellow-500"></span>
+                        Processing
+                    </span>
                     {{else if eq .Result.Status "printing"}}
-                    <span class="status-badge status-busy">Printing</span>
+                    <span class="badge badge-yellow">
+                        <span class="badge-dot bg-yellow-500"></span>
+                        Printing
+                    </span>
                     {{else if eq .Result.Status "queued"}}
-                    <span class="status-badge status-unknown">Queued</span>
+                    <span class="badge badge-gray">
+                        <span class="badge-dot bg-gray-400"></span>
+                        Queued
+                    </span>
                     {{else}}
-                    <span class="status-badge status-unknown">{{.Result.Status}}</span>
+                    <span class="badge badge-gray">{{.Result.Status}}</span>
                     {{end}}
                 </td>
                 <td class="px-6 py-4">
@@ -59,12 +74,14 @@
     </table>
 </div>
 {{else}}
-<div class="px-6 py-12 text-center text-gray-500">
-    <svg class="w-12 h-12 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-    </svg>
-    <p>No print jobs yet</p>
-    <p class="text-sm mt-2">Submit a print job using the API</p>
+<div class="empty-state">
+    <div class="empty-state-icon">
+        <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+    </div>
+    <p class="font-medium text-gray-600">No print jobs yet</p>
+    <p class="text-sm text-gray-500 mt-1">Submit a print job using the API</p>
 </div>
 {{end}}
 {{end}}

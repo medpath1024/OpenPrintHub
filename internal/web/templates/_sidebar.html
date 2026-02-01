@@ -1,0 +1,67 @@
+{{define "sidebar"}}
+<aside class="sidebar">
+    <div class="p-6">
+        <h1 class="text-xl font-bold text-gray-800">
+            <span class="text-blue-600">Open</span>PrintHub
+        </h1>
+        <p class="text-sm text-gray-500 mt-1">v0.1.0</p>
+    </div>
+    <nav class="mt-2">
+        <a href="/" class="nav-link {{if eq .Active "dashboard"}}active{{end}}">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+            </svg>
+            <span>Dashboard</span>
+        </a>
+        <a href="/printers" class="nav-link {{if eq .Active "printers"}}active{{end}}">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+            </svg>
+            <span>Printers</span>
+        </a>
+        <a href="/jobs" class="nav-link {{if eq .Active "jobs"}}active{{end}}">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+            <span>Jobs</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <div class="flex items-center gap-2 mb-2">
+            <span class="status-dot"></span>
+            <span class="text-gray-600">Service Running</span>
+        </div>
+        <div class="text-gray-400">Port: 16800</div>
+    </div>
+</aside>
+{{end}}
+
+{{define "scripts"}}
+<script>
+    // WebSocket connection for real-time updates
+    let ws;
+    function connectWebSocket() {
+        const apiPort = parseInt(window.location.port) - 1 || 16800;
+        const wsUrl = 'ws://' + window.location.hostname + ':' + apiPort + '/v1/ws';
+        ws = new WebSocket(wsUrl);
+        ws.onopen = function() {
+            console.log('WebSocket connected to', wsUrl);
+        };
+        ws.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            if (data.type === 'job_status') {
+                htmx.trigger('#jobs-list', 'refresh');
+                htmx.trigger('#stats-panel', 'refresh');
+            }
+        };
+        ws.onerror = function(err) {
+            console.log('WebSocket error:', err);
+        };
+        ws.onclose = function() {
+            console.log('WebSocket closed, reconnecting...');
+            setTimeout(connectWebSocket, 3000);
+        };
+    }
+    connectWebSocket();
+</script>
+{{end}}

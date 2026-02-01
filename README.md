@@ -11,6 +11,12 @@ A high-performance, cross-platform silent printing service written in Go. An ope
 - **Admin Dashboard**: Built-in web interface for printer management
 - **Lightweight**: Single binary, < 20MB memory footprint
 
+## Dashboard
+
+![OpenPrintHub Dashboard](assets/dashboard.png)
+
+The built-in admin dashboard provides real-time monitoring of your print service, including printer status, job queue, and API quick reference.
+
 ## Quick Start
 
 ### From Source
@@ -37,27 +43,6 @@ Once running, OpenPrintHub listens on two ports:
 See [API Reference](#api-reference) below for API documentation.
 
 ## API Reference
-
-### Service Info
-
-```http
-GET /v1/info
-```
-
-Response:
-```json
-{
-  "version": "0.1.0",
-  "platform": "darwin",
-  "uptime": 3600,
-  "printers": 2,
-  "downloads": {
-    "darwin": "https://github.com/.../oph-darwin-amd64",
-    "windows": "https://github.com/.../oph-windows-amd64.exe",
-    "linux": "https://github.com/.../oph-linux-amd64"
-  }
-}
-```
 
 ### List Printers
 

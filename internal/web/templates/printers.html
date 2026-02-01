@@ -10,126 +10,79 @@
 </head>
 <body class="bg-gray-50 min-h-screen">
     <div class="flex">
-        <!-- Sidebar -->
-        <aside class="w-64 bg-white border-r border-gray-200 min-h-screen fixed">
-            <div class="p-6">
-                <h1 class="text-xl font-bold text-gray-800">
-                    <span class="text-blue-600">Open</span>PrintHub
-                </h1>
-                <p class="text-sm text-gray-500 mt-1">v0.1.0</p>
-            </div>
-            <nav class="mt-4">
-                <a href="/" class="nav-link">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
-                    </svg>
-                    <span>Dashboard</span>
-                </a>
-                <a href="/printers" class="nav-link active">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
-                    </svg>
-                    <span>Printers</span>
-                </a>
-                <a href="/jobs" class="nav-link">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                    </svg>
-                    <span>Jobs</span>
-                </a>
-            </nav>
-            <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
-                <div class="text-xs text-gray-500">
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="w-2 h-2 bg-green-500 rounded-full"></span>
-                        Service Running
-                    </div>
-                    <div>Port: 16800</div>
-                </div>
-            </div>
-        </aside>
+        {{template "sidebar" .}}
 
         <!-- Main Content -->
-        <main class="flex-1 ml-64 p-8">
-<div class="mb-8">
-    <h2 class="text-2xl font-bold text-gray-800">Printers</h2>
-    <p class="text-gray-500 mt-1">Manage connected printers</p>
-</div>
+        <main class="main-content">
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-gray-800">Printers</h2>
+                <p class="text-gray-500 mt-1">Manage connected printers</p>
+            </div>
 
-<div class="bg-white rounded-lg shadow-sm border border-gray-200">
-    <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-        <h3 class="text-lg font-semibold text-gray-800">Available Printers</h3>
-        <button hx-get="/partials/printers" 
-                hx-target="#printers-list"
-                hx-swap="innerHTML"
-                class="btn btn-secondary">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-            </svg>
-            Refresh
-        </button>
-    </div>
-    <div id="printers-list" 
-         hx-get="/partials/printers" 
-         hx-trigger="load, every 30s">
-        {{template "printers_partial.html" .}}
-    </div>
-</div>
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Available Printers</h3>
+                    <button hx-get="/partials/printers" 
+                            hx-target="#printers-list"
+                            hx-swap="innerHTML"
+                            class="btn btn-secondary">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Refresh
+                    </button>
+                </div>
+                <div id="printers-list" 
+                     hx-get="/partials/printers" 
+                     hx-trigger="load, every 30s">
+                    {{template "printers_partial.html" .}}
+                </div>
+            </div>
 
-<!-- Printer Info -->
-<div class="mt-8 bg-white rounded-lg shadow-sm border border-gray-200">
-    <div class="px-6 py-4 border-b border-gray-200">
-        <h3 class="text-lg font-semibold text-gray-800">Supported Print Types</h3>
-    </div>
-    <div class="p-6">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="p-4 bg-gray-50 rounded-lg">
-                <div class="font-medium text-gray-800 mb-2">PDF Documents</div>
-                <p class="text-sm text-gray-500">Base64 encoded PDF files for standard document printing</p>
-                <code class="block mt-2 text-xs bg-white p-2 rounded border">type: "pdf"</code>
+            <!-- Printer Info -->
+            <div class="card mt-8">
+                <div class="card-header">
+                    <h3 class="card-title">Supported Print Types</h3>
+                </div>
+                <div class="card-body">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="feature-card">
+                            <div class="feature-icon bg-blue-50">
+                                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                </svg>
+                            </div>
+                            <div class="font-medium text-gray-800 mb-1">PDF Documents</div>
+                            <p class="text-sm text-gray-500 mb-3">Base64 encoded PDF files for standard document printing</p>
+                            <code class="inline-code">type: "pdf"</code>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon bg-purple-50">
+                                <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+                                </svg>
+                            </div>
+                            <div class="font-medium text-gray-800 mb-1">Raw Commands</div>
+                            <p class="text-sm text-gray-500 mb-3">ESC/POS, ZPL, or TSPL commands for receipt/label printers</p>
+                            <code class="inline-code">type: "raw"</code>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon bg-green-50">
+                                <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                            </div>
+                            <div class="font-medium text-gray-800 mb-1">Images</div>
+                            <p class="text-sm text-gray-500 mb-3">Base64 encoded images (JPEG, PNG, GIF, BMP)</p>
+                            <code class="inline-code">type: "image"</code>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="p-4 bg-gray-50 rounded-lg">
-                <div class="font-medium text-gray-800 mb-2">Raw Commands</div>
-                <p class="text-sm text-gray-500">ESC/POS, ZPL, or TSPL commands for receipt/label printers</p>
-                <code class="block mt-2 text-xs bg-white p-2 rounded border">type: "raw"</code>
-            </div>
-            <div class="p-4 bg-gray-50 rounded-lg">
-                <div class="font-medium text-gray-800 mb-2">Images</div>
-                <p class="text-sm text-gray-500">Base64 encoded images (JPEG, PNG, GIF, BMP)</p>
-                <code class="block mt-2 text-xs bg-white p-2 rounded border">type: "image"</code>
-            </div>
-        </div>
-    </div>
-</div>
         </main>
     </div>
 
-    <script>
-        // WebSocket connection for real-time updates
-        let ws;
-        function connectWebSocket() {
-            const wsUrl = 'ws://' + window.location.host + '/v1/ws';
-            ws = new WebSocket(wsUrl);
-            ws.onopen = function() {
-                console.log('WebSocket connected to', wsUrl);
-            };
-            ws.onmessage = function(event) {
-                const data = JSON.parse(event.data);
-                if (data.type === 'job_status') {
-                    htmx.trigger('#jobs-list', 'refresh');
-                    htmx.trigger('#stats-panel', 'refresh');
-                }
-            };
-            ws.onerror = function(err) {
-                console.log('WebSocket error:', err);
-            };
-            ws.onclose = function() {
-                console.log('WebSocket closed, reconnecting...');
-                setTimeout(connectWebSocket, 3000);
-            };
-        }
-        connectWebSocket();
-    </script>
+    {{template "scripts"}}
 </body>
 </html>
 {{end}}

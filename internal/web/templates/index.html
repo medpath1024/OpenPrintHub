@@ -10,196 +10,132 @@
 </head>
 <body class="bg-gray-50 min-h-screen">
     <div class="flex">
-        <!-- Sidebar -->
-        <aside class="w-64 bg-white border-r border-gray-200 min-h-screen fixed">
-            <div class="p-6">
-                <h1 class="text-xl font-bold text-gray-800">
-                    <span class="text-blue-600">Open</span>PrintHub
-                </h1>
-                <p class="text-sm text-gray-500 mt-1">v0.1.0</p>
-            </div>
-            <nav class="mt-4">
-                <a href="/" class="nav-link active">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
-                    </svg>
-                    <span>Dashboard</span>
-                </a>
-                <a href="/printers" class="nav-link">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
-                    </svg>
-                    <span>Printers</span>
-                </a>
-                <a href="/jobs" class="nav-link">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                    </svg>
-                    <span>Jobs</span>
-                </a>
-            </nav>
-            <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
-                <div class="text-xs text-gray-500">
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="w-2 h-2 bg-green-500 rounded-full"></span>
-                        Service Running
-                    </div>
-                    <div>Port: 16800</div>
-                </div>
-            </div>
-        </aside>
+        {{template "sidebar" .}}
 
         <!-- Main Content -->
-        <main class="flex-1 ml-64 p-8">
-<div class="mb-8">
-    <h2 class="text-2xl font-bold text-gray-800">Dashboard</h2>
-    <p class="text-gray-500 mt-1">Monitor your print service</p>
-</div>
+        <main class="main-content">
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold text-gray-800">Dashboard</h2>
+                <p class="text-gray-500 mt-1">Monitor your print service</p>
+            </div>
 
-<!-- Stats Cards -->
-<div id="stats-panel" 
-     hx-get="/partials/stats" 
-     hx-trigger="load, refresh, every 10s"
-     class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-    {{template "stats_partial.html" .Stats}}
-</div>
+            <!-- Stats Cards -->
+            <div id="stats-panel" 
+                 hx-get="/partials/stats" 
+                 hx-trigger="load, refresh, every 10s"
+                 class="stats-grid">
+                {{template "stats_partial.html" .Stats}}
+            </div>
 
-<!-- Quick Status -->
-<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-    <!-- Printers Summary -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-            <h3 class="text-lg font-semibold text-gray-800">Printers Summary</h3>
-            <a href="/printers" class="text-sm text-blue-600 hover:text-blue-800">View All →</a>
-        </div>
-        <div class="p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <div class="text-3xl font-bold text-gray-800">{{len .Printers}}</div>
-                    <div class="text-sm text-gray-500">Connected Printers</div>
+            <!-- Quick Status -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <!-- Printers Summary -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Printers Summary</h3>
+                        <a href="/printers" class="text-sm text-blue-600 hover:text-blue-800">View All →</a>
+                    </div>
+                    <div class="card-body">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="text-3xl font-bold text-gray-800">{{.PrinterStats.Total}}</div>
+                                <div class="text-sm text-gray-500">Connected Printers</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="flex items-center gap-3">
+                                    {{if gt .PrinterStats.Ready 0}}
+                                    <span class="badge badge-green">
+                                        <span class="badge-dot bg-green-500"></span>
+                                        {{.PrinterStats.Ready}} Ready
+                                    </span>
+                                    {{end}}
+                                    {{if gt .PrinterStats.Busy 0}}
+                                    <span class="badge badge-yellow">{{.PrinterStats.Busy}} Busy</span>
+                                    {{end}}
+                                    {{if gt .PrinterStats.Offline 0}}
+                                    <span class="badge badge-gray">{{.PrinterStats.Offline}} Offline</span>
+                                    {{end}}
+                                    {{if gt .PrinterStats.Error 0}}
+                                    <span class="badge badge-red">{{.PrinterStats.Error}} Error</span>
+                                    {{end}}
+                                </div>
+                            </div>
+                        </div>
+                        {{if .Printers}}
+                        <div class="mt-4 pt-4 border-t border-gray-100">
+                            <div class="text-sm text-gray-500 mb-1">Default Printer:</div>
+                            {{range .Printers}}
+                                {{if .IsDefault}}
+                                <div class="font-medium text-gray-800">{{.Name}}</div>
+                                {{end}}
+                            {{end}}
+                        </div>
+                        {{end}}
+                    </div>
                 </div>
-                <div class="text-right">
-                    {{$ready := 0}}{{$offline := 0}}
-                    {{range .Printers}}
-                        {{if eq .Status "Ready"}}{{$ready = 1}}{{end}}
-                        {{if eq .Status "Offline"}}{{$offline = 1}}{{end}}
-                    {{end}}
-                    <div class="flex items-center gap-4">
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            Ready
-                        </span>
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                            {{len .Printers}} total
-                        </span>
+
+                <!-- Service Status -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Service Status</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="space-y-4">
+                            <div class="status-row">
+                                <span class="text-gray-600">API Server</span>
+                                <span class="badge badge-green">Running</span>
+                            </div>
+                            <div class="status-row">
+                                <span class="text-gray-600">WebSocket</span>
+                                <span class="badge badge-green">Active</span>
+                            </div>
+                            <div class="status-row">
+                                <span class="text-gray-600">Print Queue</span>
+                                <span class="badge badge-blue">{{.Stats.QueuedJobs}} queued</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-            {{if .Printers}}
-            <div class="mt-4 pt-4 border-t border-gray-100">
-                <div class="text-sm text-gray-500 mb-2">Default Printer:</div>
-                {{range .Printers}}
-                    {{if .IsDefault}}
-                    <div class="font-medium text-gray-800">{{.Name}}</div>
-                    {{end}}
-                {{end}}
-            </div>
-            {{end}}
-        </div>
-    </div>
 
-    <!-- Recent Activity -->
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-            <h3 class="text-lg font-semibold text-gray-800">Service Status</h3>
-        </div>
-        <div class="p-6">
-            <div class="space-y-4">
-                <div class="flex items-center justify-between">
-                    <span class="text-gray-600">API Server</span>
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Running
-                    </span>
+            <!-- API Quick Reference -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">API Quick Reference</h3>
                 </div>
-                <div class="flex items-center justify-between">
-                    <span class="text-gray-600">WebSocket</span>
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Active
-                    </span>
+                <div class="card-body">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="api-item">
+                            <h4 class="api-label">Service Info</h4>
+                            <code class="api-code"><span class="method get">GET</span> /v1/info</code>
+                        </div>
+                        <div class="api-item">
+                            <h4 class="api-label">List Printers</h4>
+                            <code class="api-code"><span class="method get">GET</span> /v1/printers</code>
+                        </div>
+                        <div class="api-item">
+                            <h4 class="api-label">Submit Print Job</h4>
+                            <code class="api-code"><span class="method post">POST</span> /v1/print</code>
+                        </div>
+                        <div class="api-item">
+                            <h4 class="api-label">Batch Print</h4>
+                            <code class="api-code"><span class="method post">POST</span> /v1/print/batch</code>
+                        </div>
+                        <div class="api-item">
+                            <h4 class="api-label">Cancel Job</h4>
+                            <code class="api-code"><span class="method post">POST</span> /v1/jobs/:id/cancel</code>
+                        </div>
+                        <div class="api-item">
+                            <h4 class="api-label">WebSocket</h4>
+                            <code class="api-code"><span class="method ws">WS</span> /v1/ws</code>
+                        </div>
+                    </div>
                 </div>
-                <div class="flex items-center justify-between">
-                    <span class="text-gray-600">Print Queue</span>
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {{.Stats.QueuedJobs}} queued
-                    </span>
-                </div>
             </div>
-        </div>
-    </div>
-</div>
-
-<!-- API Quick Reference -->
-<div class="bg-white rounded-lg shadow-sm border border-gray-200">
-    <div class="px-6 py-4 border-b border-gray-200">
-        <h3 class="text-lg font-semibold text-gray-800">API Quick Reference</h3>
-    </div>
-    <div class="p-6">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-                <h4 class="font-medium text-gray-700 mb-2">Service Info</h4>
-                <code class="block bg-gray-100 p-3 rounded text-sm">GET /v1/info</code>
-            </div>
-            <div>
-                <h4 class="font-medium text-gray-700 mb-2">List Printers</h4>
-                <code class="block bg-gray-100 p-3 rounded text-sm">GET /v1/printers</code>
-            </div>
-            <div>
-                <h4 class="font-medium text-gray-700 mb-2">Submit Print Job</h4>
-                <code class="block bg-gray-100 p-3 rounded text-sm">POST /v1/print</code>
-            </div>
-            <div>
-                <h4 class="font-medium text-gray-700 mb-2">Batch Print</h4>
-                <code class="block bg-gray-100 p-3 rounded text-sm">POST /v1/print/batch</code>
-            </div>
-            <div>
-                <h4 class="font-medium text-gray-700 mb-2">Cancel Job</h4>
-                <code class="block bg-gray-100 p-3 rounded text-sm">POST /v1/jobs/:id/cancel</code>
-            </div>
-            <div>
-                <h4 class="font-medium text-gray-700 mb-2">WebSocket</h4>
-                <code class="block bg-gray-100 p-3 rounded text-sm">WS /v1/ws</code>
-            </div>
-        </div>
-    </div>
-</div>
         </main>
     </div>
 
-    <script>
-        // WebSocket connection for real-time updates
-        let ws;
-        function connectWebSocket() {
-            const wsUrl = 'ws://' + window.location.host + '/v1/ws';
-            ws = new WebSocket(wsUrl);
-            ws.onopen = function() {
-                console.log('WebSocket connected to', wsUrl);
-            };
-            ws.onmessage = function(event) {
-                const data = JSON.parse(event.data);
-                if (data.type === 'job_status') {
-                    htmx.trigger('#jobs-list', 'refresh');
-                    htmx.trigger('#stats-panel', 'refresh');
-                }
-            };
-            ws.onerror = function(err) {
-                console.log('WebSocket error:', err);
-            };
-            ws.onclose = function() {
-                console.log('WebSocket closed, reconnecting...');
-                setTimeout(connectWebSocket, 3000);
-            };
-        }
-        connectWebSocket();
-    </script>
+    {{template "scripts"}}
 </body>
 </html>
 {{end}}
