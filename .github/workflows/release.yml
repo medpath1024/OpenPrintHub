@@ -12,8 +12,9 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    name: Create Release
+  # Build Linux binaries
+  build-linux:
+    name: Build Linux
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -26,30 +27,12 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - name: Download dependencies
-        run: go mod download
-
-      - name: Run tests
-        run: go test -v ./...
-
-      - name: Build all platforms
+      - name: Build Linux binaries
         run: |
           VERSION=${GITHUB_REF_NAME#v}
           LDFLAGS="-s -w -X main.version=${VERSION}"
           
           mkdir -p dist
-          
-          # Darwin AMD64
-          GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 \
-            go build -ldflags "${LDFLAGS}" -o dist/oph-darwin-amd64 ./cmd/oph
-          
-          # Darwin ARM64
-          GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 \
-            go build -ldflags "${LDFLAGS}" -o dist/oph-darwin-arm64 ./cmd/oph
-          
-          # Windows AMD64
-          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 \
-            go build -ldflags "${LDFLAGS}" -o dist/oph-windows-amd64.exe ./cmd/oph
           
           # Linux AMD64
           GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
@@ -58,38 +41,171 @@ jobs:
           # Linux ARM64
           GOOS=linux GOARCH=arm64 CGO_ENABLED=0 \
             go build -ldflags "${LDFLAGS}" -o dist/oph-linux-arm64 ./cmd/oph
+          
+          # Create tar.gz archives
+          cd dist
+          tar -czvf oph-linux-amd64.tar.gz oph-linux-amd64
+          tar -czvf oph-linux-arm64.tar.gz oph-linux-arm64
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-binaries
+          path: |
+            dist/*.tar.gz
+
+  # Build Windows installer
+  build-windows:
+    name: Build Windows Installer
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Build Windows binary
+        shell: bash
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          LDFLAGS="-s -w -X main.version=${VERSION} -H=windowsgui"
+          
+          mkdir -p dist scripts/windows
+          
+          # Windows AMD64
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 \
+            go build -ldflags "${LDFLAGS}" -o scripts/windows/oph.exe ./cmd/oph
+
+      - name: Install NSIS
+        shell: powershell
+        run: |
+          choco install nsis -y
+
+      - name: Create Windows installer
+        shell: powershell
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          & "C:\Program Files (x86)\NSIS\makensis.exe" /DVERSION=$version scripts\windows\installer.nsi
+          Move-Item scripts\windows\OpenPrintHub-Setup.exe dist\OpenPrintHub-$version-windows-amd64-setup.exe
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dist/*-setup.exe
+
+  # Build macOS DMG
+  build-macos:
+    name: Build macOS DMG
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        include:
+          - goarch: amd64
+            arch: x64
+          - goarch: arm64
+            arch: arm64
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Build macOS binary
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          LDFLAGS="-s -w -X main.version=${VERSION}"
+          
+          mkdir -p dist
+          
+          GOOS=darwin GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 \
+            go build -ldflags "${LDFLAGS}" -o dist/oph-darwin-${{ matrix.goarch }} ./cmd/oph
+
+      - name: Create DMG
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          chmod +x scripts/macos/create-dmg.sh
+          
+          BINARY_PATH=dist/oph-darwin-${{ matrix.goarch }} \
+          VERSION=${VERSION} \
+          ARCH=${{ matrix.arch }} \
+          OUTPUT_DIR=dist \
+          ./scripts/macos/create-dmg.sh
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg-${{ matrix.arch }}
+          path: dist/*.dmg
+
+  # Create GitHub Release
+  release:
+    name: Create Release
+    needs: [build-linux, build-windows, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -la dist/
 
       - name: Create checksums
         run: |
           cd dist
           sha256sum * > checksums.txt
-
-      - name: Create archives
-        run: |
-          cd dist
-          
-          # Create tar.gz for Unix platforms
-          for file in oph-darwin-* oph-linux-*; do
-            tar -czvf "${file}.tar.gz" "${file}"
-          done
-          
-          # Create zip for Windows
-          for file in oph-windows-*.exe; do
-            zip "${file%.exe}.zip" "${file}"
-          done
+          cat checksums.txt
 
       - name: Generate changelog
-        id: changelog
         run: |
           # Get the previous tag
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
           
           if [ -n "$PREV_TAG" ]; then
-            echo "## Changes since ${PREV_TAG}" > CHANGELOG_RELEASE.md
+            echo "## What's Changed" > CHANGELOG_RELEASE.md
+            echo "" >> CHANGELOG_RELEASE.md
             git log --pretty=format:"- %s (%h)" ${PREV_TAG}..HEAD >> CHANGELOG_RELEASE.md
+            echo "" >> CHANGELOG_RELEASE.md
+            echo "" >> CHANGELOG_RELEASE.md
+            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${{ github.ref_name }}" >> CHANGELOG_RELEASE.md
           else
-            echo "## Initial Release" > CHANGELOG_RELEASE.md
-            echo "First public release of OpenPrintHub." >> CHANGELOG_RELEASE.md
+            echo "## 🎉 Initial Release" > CHANGELOG_RELEASE.md
+            echo "" >> CHANGELOG_RELEASE.md
+            echo "First public release of OpenPrintHub - a high-performance, cross-platform silent printing service." >> CHANGELOG_RELEASE.md
+            echo "" >> CHANGELOG_RELEASE.md
+            echo "### Features" >> CHANGELOG_RELEASE.md
+            echo "- REST API for print job management" >> CHANGELOG_RELEASE.md
+            echo "- WebSocket support for real-time status updates" >> CHANGELOG_RELEASE.md
+            echo "- Support for PDF, RAW, and image printing" >> CHANGELOG_RELEASE.md
+            echo "- Cross-platform support (Windows, macOS, Linux)" >> CHANGELOG_RELEASE.md
+            echo "- Web-based admin dashboard" >> CHANGELOG_RELEASE.md
+            echo "" >> CHANGELOG_RELEASE.md
+            echo "### Downloads" >> CHANGELOG_RELEASE.md
+            echo "| Platform | Download |" >> CHANGELOG_RELEASE.md
+            echo "|----------|----------|" >> CHANGELOG_RELEASE.md
+            echo "| Windows (64-bit) | \`OpenPrintHub-*-windows-amd64-setup.exe\` |" >> CHANGELOG_RELEASE.md
+            echo "| macOS (Intel) | \`OpenPrintHub-*-x64.dmg\` |" >> CHANGELOG_RELEASE.md
+            echo "| macOS (Apple Silicon) | \`OpenPrintHub-*-arm64.dmg\` |" >> CHANGELOG_RELEASE.md
+            echo "| Linux (64-bit) | \`oph-linux-amd64.tar.gz\` |" >> CHANGELOG_RELEASE.md
+            echo "| Linux (ARM64) | \`oph-linux-arm64.tar.gz\` |" >> CHANGELOG_RELEASE.md
           fi
 
       - name: Create GitHub Release
@@ -97,9 +213,7 @@ jobs:
         with:
           body_path: CHANGELOG_RELEASE.md
           files: |
-            dist/*.tar.gz
-            dist/*.zip
-            dist/checksums.txt
+            dist/*
           draft: false
           prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
         env:
