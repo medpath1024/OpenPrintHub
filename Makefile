@@ -1,4 +1,4 @@
-.PHONY: build build-all run clean test dev
+.PHONY: build build-all run clean test dev setup-hooks
 
 # Binary name
 BINARY_NAME=oph
@@ -72,3 +72,11 @@ fmt:
 # Lint code (requires golangci-lint)
 lint:
 	golangci-lint run
+
+# Setup git hooks
+setup-hooks:
+	@echo "Installing git hooks..."
+	@mkdir -p .git/hooks
+	@cp scripts/pre-commit .git/hooks/pre-commit
+	@chmod +x .git/hooks/pre-commit
+	@echo "Git hooks installed successfully!"

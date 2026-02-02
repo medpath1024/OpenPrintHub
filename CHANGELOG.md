@@ -13,6 +13,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - HTTPS support with self-signed certificates
 - Print job persistence (SQLite)
 
+## [0.1.1] - 2026-02-02
+
+### Added
+- Git pre-commit hooks with automatic formatting, linting, and testing
+- `make setup-hooks` command for easy git hooks installation
+- Windows NSIS installer with auto-start and system integration
+- macOS DMG package with LaunchAgent support
+
+### Changed
+- Improved dashboard UI with consistent styling and better UX
+- Added printer status counts in dashboard (Ready/Busy/Offline/Error)
+- Enhanced CSS with modern design tokens and pulsing status indicators
+- Refactored templates to use shared sidebar component
+
+### Dependencies
+- Upgraded `github.com/gin-gonic/gin` from 1.9.1 to 1.11.0
+- Upgraded `github.com/gorilla/websocket` from 1.5.1 to 1.5.3
+- Updated GitHub Actions workflows (actions/checkout v6, actions/upload-artifact v6)
+
 ## [0.1.0] - 2026-01-30
 
 ### Added
@@ -44,5 +63,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - RAW (ESC/POS commands)
 - Image (JPEG, PNG, GIF, BMP)
 
-[Unreleased]: https://github.com/medpath1024/OpenPrintHub/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/medpath1024/OpenPrintHub/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/medpath1024/OpenPrintHub/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/medpath1024/OpenPrintHub/releases/tag/v0.1.0
