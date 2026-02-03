@@ -1,7 +1,11 @@
 package web
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -40,6 +44,31 @@ type PageData struct {
 	PrinterStats PrinterStats
 	Jobs         []*print.JobEntry
 	Stats        print.QueueStats
+}
+
+// JobInfoData holds detailed job information for troubleshooting view
+type JobInfoData struct {
+	Entry              *print.JobEntry
+	PayloadBytes       int
+	PayloadBase64Bytes int
+	PayloadSHA256      string
+	ProcessingDuration string
+	PrinterStatus      *printer.PrinterInfo
+	PrinterStatusError string
+	Error              string
+}
+
+// JobDiagnosticsExport is a serializable diagnostics payload for download
+type JobDiagnosticsExport struct {
+	ExportedAt         time.Time            `json:"exported_at"`
+	Job                *printer.PrintJob    `json:"job,omitempty"`
+	Result             *printer.JobResult   `json:"result,omitempty"`
+	PrinterStatus      *printer.PrinterInfo `json:"printer_status,omitempty"`
+	PrinterStatusError string               `json:"printer_status_error,omitempty"`
+	PayloadBytes       int                  `json:"payload_bytes"`
+	PayloadBase64Bytes int                  `json:"payload_base64_bytes"`
+	PayloadSHA256      string               `json:"payload_sha256,omitempty"`
+	ProcessingDuration string               `json:"processing_duration"`
 }
 
 // Index handles GET /
@@ -136,6 +165,60 @@ func (h *Handlers) JobsPartial(c *gin.Context) {
 	}
 }
 
+// JobInfoPartial handles GET /partials/jobs/:id/info (HTMX partial)
+func (h *Handlers) JobInfoPartial(c *gin.Context) {
+	jobID := c.Param("id")
+	data, ok := h.collectJobInfo(jobID)
+	if !ok {
+		c.Status(http.StatusNotFound)
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		if err := Templates.ExecuteTemplate(c.Writer, "job_info_partial.html", JobInfoData{
+			Error: fmt.Sprintf("Job %s not found", jobID),
+		}); err != nil {
+			c.String(http.StatusInternalServerError, "Template error: %v", err)
+		}
+		return
+	}
+
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	if err := Templates.ExecuteTemplate(c.Writer, "job_info_partial.html", data); err != nil {
+		c.String(http.StatusInternalServerError, "Template error: %v", err)
+	}
+}
+
+// ExportJobInfo handles GET /partials/jobs/:id/info/export (JSON download)
+func (h *Handlers) ExportJobInfo(c *gin.Context) {
+	jobID := c.Param("id")
+	data, ok := h.collectJobInfo(jobID)
+	if !ok {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": fmt.Sprintf("job %s not found", jobID),
+		})
+		return
+	}
+
+	exportPayload := JobDiagnosticsExport{
+		ExportedAt:         time.Now(),
+		Job:                data.Entry.Job,
+		Result:             data.Entry.Result,
+		PrinterStatus:      data.PrinterStatus,
+		PrinterStatusError: data.PrinterStatusError,
+		PayloadBytes:       data.PayloadBytes,
+		PayloadBase64Bytes: data.PayloadBase64Bytes,
+		PayloadSHA256:      data.PayloadSHA256,
+		ProcessingDuration: data.ProcessingDuration,
+	}
+
+	filenameID := jobID
+	if len(filenameID) > 8 {
+		filenameID = filenameID[:8]
+	}
+
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"job-%s-diagnostics.json\"", filenameID))
+	c.Header("Content-Type", "application/json; charset=utf-8")
+	c.JSON(http.StatusOK, exportPayload)
+}
+
 // StatsPartial handles GET /partials/stats (HTMX partial)
 func (h *Handlers) StatsPartial(c *gin.Context) {
 	stats := h.printQueue.Stats()
@@ -144,4 +227,60 @@ func (h *Handlers) StatsPartial(c *gin.Context) {
 	if err := Templates.ExecuteTemplate(c.Writer, "stats_partial.html", stats); err != nil {
 		c.String(http.StatusInternalServerError, "Template error: %v", err)
 	}
+}
+
+func processingDuration(result *printer.JobResult) string {
+	if result == nil || result.StartedAt.IsZero() {
+		return "-"
+	}
+
+	end := result.CompletedAt
+	if end.IsZero() {
+		end = time.Now()
+	}
+	if end.Before(result.StartedAt) {
+		return "-"
+	}
+
+	return end.Sub(result.StartedAt).Round(time.Millisecond).String()
+}
+
+func (h *Handlers) collectJobInfo(jobID string) (JobInfoData, bool) {
+	entry, ok := h.printQueue.GetJob(jobID)
+	if !ok {
+		return JobInfoData{}, false
+	}
+
+	var (
+		printerStatus      *printer.PrinterInfo
+		printerStatusError string
+	)
+	if entry.Result != nil && entry.Result.PrinterName != "" {
+		status, err := h.printerSvc.Status(entry.Result.PrinterName)
+		if err != nil {
+			printerStatusError = err.Error()
+		} else {
+			printerStatus = status
+		}
+	}
+
+	payloadHash := ""
+	if entry.Job != nil && len(entry.Job.Data) > 0 {
+		sum := sha256.Sum256(entry.Job.Data)
+		payloadHash = hex.EncodeToString(sum[:])
+	}
+
+	data := JobInfoData{
+		Entry:              entry,
+		PayloadSHA256:      payloadHash,
+		ProcessingDuration: processingDuration(entry.Result),
+		PrinterStatus:      printerStatus,
+		PrinterStatusError: printerStatusError,
+	}
+	if entry.Job != nil {
+		data.PayloadBytes = len(entry.Job.Data)
+		data.PayloadBase64Bytes = len(entry.Job.DataBase64)
+	}
+
+	return data, true
 }

@@ -1,0 +1,111 @@
+{{define "job_info_partial.html"}}
+{{if .Error}}
+<div class="detail-card">
+    <div class="detail-label">Error</div>
+    <div class="detail-value text-red-600">{{.Error}}</div>
+</div>
+{{else}}
+<div class="detail-grid">
+    <div class="detail-card">
+        <div class="detail-label">Job ID</div>
+        <div class="detail-value detail-mono">{{.Entry.Result.JobID}}</div>
+    </div>
+    <div class="detail-card">
+        <div class="detail-label">Job Name</div>
+        <div class="detail-value">{{if .Entry.Job.Name}}{{.Entry.Job.Name}}{{else}}-{{end}}</div>
+    </div>
+    <div class="detail-card">
+        <div class="detail-label">Printer</div>
+        <div class="detail-value">{{.Entry.Result.PrinterName}}</div>
+    </div>
+    <div class="detail-card">
+        <div class="detail-label">Current Printer Status</div>
+        <div class="detail-value">
+            {{if .PrinterStatus}}
+                {{.PrinterStatus.Status}}
+            {{else if .PrinterStatusError}}
+                <span class="text-red-600">{{.PrinterStatusError}}</span>
+            {{else}}
+                Unknown
+            {{end}}
+        </div>
+    </div>
+    <div class="detail-card">
+        <div class="detail-label">Type</div>
+        <div class="detail-value">{{.Entry.Job.Type}}</div>
+    </div>
+    <div class="detail-card">
+        <div class="detail-label">Status</div>
+        <div class="detail-value">{{title (lower (printf "%s" .Entry.Result.Status))}}</div>
+    </div>
+    <div class="detail-card">
+        <div class="detail-label">Queue Message</div>
+        <div class="detail-value">{{if .Entry.Result.Message}}{{.Entry.Result.Message}}{{else}}-{{end}}</div>
+    </div>
+    <div class="detail-card">
+        <div class="detail-label">Error Message</div>
+        <div class="detail-value">{{if .Entry.Result.Error}}<span class="text-red-600">{{.Entry.Result.Error}}</span>{{else}}-{{end}}</div>
+    </div>
+    <div class="detail-card">
+        <div class="detail-label">Created At</div>
+        <div class="detail-value">{{if not .Entry.Result.CreatedAt.IsZero}}{{.Entry.Result.CreatedAt.Format "2006-01-02 15:04:05"}}{{else}}-{{end}}</div>
+    </div>
+    <div class="detail-card">
+        <div class="detail-label">Started At</div>
+        <div class="detail-value">{{if not .Entry.Result.StartedAt.IsZero}}{{.Entry.Result.StartedAt.Format "2006-01-02 15:04:05"}}{{else}}-{{end}}</div>
+    </div>
+    <div class="detail-card">
+        <div class="detail-label">Completed At</div>
+        <div class="detail-value">{{if not .Entry.Result.CompletedAt.IsZero}}{{.Entry.Result.CompletedAt.Format "2006-01-02 15:04:05"}}{{else}}-{{end}}</div>
+    </div>
+    <div class="detail-card">
+        <div class="detail-label">Processing Duration</div>
+        <div class="detail-value">{{.ProcessingDuration}}</div>
+    </div>
+    <div class="detail-card">
+        <div class="detail-label">Copies</div>
+        <div class="detail-value">{{.Entry.Job.Settings.Copies}}</div>
+    </div>
+    <div class="detail-card">
+        <div class="detail-label">Orientation</div>
+        <div class="detail-value">{{if .Entry.Job.Settings.Orientation}}{{.Entry.Job.Settings.Orientation}}{{else}}-{{end}}</div>
+    </div>
+    <div class="detail-card">
+        <div class="detail-label">Paper Size</div>
+        <div class="detail-value">{{if .Entry.Job.Settings.PaperSize}}{{.Entry.Job.Settings.PaperSize}}{{else}}-{{end}}</div>
+    </div>
+    <div class="detail-card">
+        <div class="detail-label">Color Mode</div>
+        <div class="detail-value">{{if .Entry.Job.Settings.ColorMode}}{{.Entry.Job.Settings.ColorMode}}{{else}}-{{end}}</div>
+    </div>
+    <div class="detail-card">
+        <div class="detail-label">Duplex</div>
+        <div class="detail-value">{{if .Entry.Job.Settings.Duplex}}{{.Entry.Job.Settings.Duplex}}{{else}}-{{end}}</div>
+    </div>
+    <div class="detail-card">
+        <div class="detail-label">Fit To Page</div>
+        <div class="detail-value">{{if .Entry.Job.Settings.FitToPage}}true{{else}}false{{end}}</div>
+    </div>
+    <div class="detail-card">
+        <div class="detail-label">Image DPI</div>
+        <div class="detail-value">{{if gt .Entry.Job.Settings.DPI 0}}{{.Entry.Job.Settings.DPI}}{{else}}-{{end}}</div>
+    </div>
+    <div class="detail-card">
+        <div class="detail-label">Image Scale Mode</div>
+        <div class="detail-value">{{if .Entry.Job.Settings.ScaleMode}}{{.Entry.Job.Settings.ScaleMode}}{{else}}-{{end}}</div>
+    </div>
+    <div class="detail-card">
+        <div class="detail-label">Payload Bytes</div>
+        <div class="detail-value">{{.PayloadBytes}}</div>
+    </div>
+    <div class="detail-card">
+        <div class="detail-label">Payload Base64 Length</div>
+        <div class="detail-value">{{.PayloadBase64Bytes}}</div>
+    </div>
+    <div class="detail-card detail-span-full">
+        <div class="detail-label">Payload SHA-256</div>
+        <div class="detail-value detail-mono">{{if .PayloadSHA256}}{{.PayloadSHA256}}{{else}}-{{end}}</div>
+    </div>
+</div>
+{{end}}
+{{end}}

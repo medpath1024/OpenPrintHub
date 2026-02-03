@@ -411,6 +411,11 @@ body {
     border: none;
 }
 
+.btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
 .btn-primary {
     background-color: var(--color-primary);
     color: #ffffff;
@@ -429,6 +434,11 @@ body {
 .btn-secondary:hover {
     background-color: var(--color-gray-50);
     border-color: var(--color-gray-400);
+}
+
+.btn-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
 }
 
 /* Status badges (legacy, for compatibility) */
@@ -582,6 +592,106 @@ th, td {
     width: 2rem;
     height: 2rem;
     color: var(--color-gray-400);
+}
+
+/* Job info modal */
+body.modal-open {
+    overflow: hidden;
+}
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgb(15 23 42 / 45%);
+    z-index: 1000;
+}
+
+.modal-overlay.open {
+    display: flex;
+}
+
+.modal-panel {
+    width: min(1024px, 100%);
+    max-height: calc(100vh - 2rem);
+    overflow: auto;
+    background: #ffffff;
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+}
+
+.modal-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--color-gray-200);
+}
+
+.modal-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.modal-panel-body {
+    padding: 1rem 1.5rem 1.5rem;
+}
+
+.modal-loading {
+    display: none;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.875rem;
+    color: var(--color-gray-500);
+    border-bottom: 1px solid var(--color-gray-100);
+}
+
+#job-info-loading.htmx-request {
+    display: block;
+}
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+    .detail-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.detail-card {
+    background: var(--color-gray-50);
+    border: 1px solid var(--color-gray-200);
+    border-radius: var(--radius-md);
+    padding: 0.75rem;
+}
+
+.detail-span-full {
+    grid-column: 1 / -1;
+}
+
+.detail-label {
+    font-size: 0.75rem;
+    color: var(--color-gray-500);
+    margin-bottom: 0.25rem;
+}
+
+.detail-value {
+    color: var(--color-gray-800);
+    font-size: 0.875rem;
+    overflow-wrap: anywhere;
+}
+
+.detail-mono {
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
 }
 
 /* HTMX loading indicator */

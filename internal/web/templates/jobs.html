@@ -38,9 +38,78 @@
                     {{template "jobs_partial.html" .}}
                 </div>
             </div>
+
+            <div id="job-info-modal" class="modal-overlay" onclick="closeJobInfoOnBackdrop(event)">
+                <div class="modal-panel">
+                    <div class="modal-panel-header">
+                        <h3 id="job-info-title" class="card-title">Job Info</h3>
+                        <div class="modal-actions">
+                            <button id="job-info-export-btn" type="button" class="btn btn-primary btn-sm" onclick="exportJobInfo()" disabled>
+                                Export JSON
+                            </button>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="closeJobInfoModal()">Close</button>
+                        </div>
+                    </div>
+                    <div id="job-info-loading" class="htmx-indicator modal-loading">Loading details...</div>
+                    <div id="job-info-content" class="modal-panel-body">
+                        <p class="text-sm text-gray-500">Click the Info button on a job to load detailed diagnostics.</p>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 
+    <script>
+        let activeJobInfoId = '';
+
+        function openJobInfoModal(jobID) {
+            const modal = document.getElementById('job-info-modal');
+            const title = document.getElementById('job-info-title');
+            if (!modal || !title) return;
+
+            activeJobInfoId = jobID || '';
+            updateJobInfoExportButton();
+            title.textContent = jobID ? ('Job Info - ' + jobID) : 'Job Info';
+            modal.classList.add('open');
+            document.body.classList.add('modal-open');
+        }
+
+        function closeJobInfoModal() {
+            const modal = document.getElementById('job-info-modal');
+            if (!modal) return;
+
+            modal.classList.remove('open');
+            document.body.classList.remove('modal-open');
+            activeJobInfoId = '';
+            updateJobInfoExportButton();
+        }
+
+        function closeJobInfoOnBackdrop(event) {
+            if (event.target && event.target.id === 'job-info-modal') {
+                closeJobInfoModal();
+            }
+        }
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeJobInfoModal();
+            }
+        });
+
+        function exportJobInfo() {
+            if (!activeJobInfoId) return;
+            const url = '/partials/jobs/' + encodeURIComponent(activeJobInfoId) + '/info/export';
+            window.location.href = url;
+        }
+
+        function updateJobInfoExportButton() {
+            const exportBtn = document.getElementById('job-info-export-btn');
+            if (!exportBtn) return;
+            exportBtn.disabled = !activeJobInfoId;
+        }
+
+        updateJobInfoExportButton();
+    </script>
     {{template "scripts"}}
 </body>
 </html>

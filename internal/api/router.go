@@ -119,6 +119,8 @@ func (s *Server) setupWebRoutes() {
 	// HTMX partials
 	s.webRouter.GET("/partials/printers", webHandlers.PrintersPartial)
 	s.webRouter.GET("/partials/jobs", webHandlers.JobsPartial)
+	s.webRouter.GET("/partials/jobs/:id/info", webHandlers.JobInfoPartial)
+	s.webRouter.GET("/partials/jobs/:id/info/export", webHandlers.ExportJobInfo)
 	s.webRouter.GET("/partials/stats", webHandlers.StatsPartial)
 
 	// WebSocket - also available on web port for convenience
