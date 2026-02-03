@@ -1,10 +1,16 @@
 package web
 
 import (
+	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/http"
+	"os/exec"
+	"runtime"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -17,13 +23,15 @@ import (
 type Handlers struct {
 	printerSvc printer.Service
 	printQueue *print.Queue
+	version    string
 }
 
 // NewHandlers creates new web handlers
-func NewHandlers(printerSvc printer.Service, printQueue *print.Queue) *Handlers {
+func NewHandlers(printerSvc printer.Service, printQueue *print.Queue, version string) *Handlers {
 	return &Handlers{
 		printerSvc: printerSvc,
 		printQueue: printQueue,
+		version:    version,
 	}
 }
 
@@ -40,6 +48,7 @@ type PrinterStats struct {
 type PageData struct {
 	Title        string
 	Active       string
+	Version      string
 	Printers     []printer.PrinterInfo
 	PrinterStats PrinterStats
 	Jobs         []*print.JobEntry
@@ -60,15 +69,43 @@ type JobInfoData struct {
 
 // JobDiagnosticsExport is a serializable diagnostics payload for download
 type JobDiagnosticsExport struct {
+	ExportedBy         string               `json:"exported_by"`
 	ExportedAt         time.Time            `json:"exported_at"`
+	Platform           string               `json:"platform"`
+	ServiceVersion     string               `json:"service_version"`
 	Job                *printer.PrintJob    `json:"job,omitempty"`
 	Result             *printer.JobResult   `json:"result,omitempty"`
 	PrinterStatus      *printer.PrinterInfo `json:"printer_status,omitempty"`
 	PrinterStatusError string               `json:"printer_status_error,omitempty"`
+	PrinterDiagnostics *PrinterDiagnostics  `json:"printer_diagnostics,omitempty"`
 	PayloadBytes       int                  `json:"payload_bytes"`
 	PayloadBase64Bytes int                  `json:"payload_base64_bytes"`
 	PayloadSHA256      string               `json:"payload_sha256,omitempty"`
 	ProcessingDuration string               `json:"processing_duration"`
+	QueueWaitMS        int64                `json:"queue_wait_ms,omitempty"`
+	PrintRunMS         int64                `json:"print_run_ms,omitempty"`
+	TotalElapsedMS     int64                `json:"total_elapsed_ms,omitempty"`
+}
+
+// PrinterDiagnostics captures raw OS-level printer details for troubleshooting.
+type PrinterDiagnostics struct {
+	CollectedAt time.Time            `json:"collected_at"`
+	Platform    string               `json:"platform"`
+	PrinterName string               `json:"printer_name"`
+	CUPSName    string               `json:"cups_name,omitempty"`
+	Commands    []CommandDiagnostics `json:"commands,omitempty"`
+}
+
+// CommandDiagnostics stores one command execution result.
+type CommandDiagnostics struct {
+	Command    string    `json:"command"`
+	Args       []string  `json:"args,omitempty"`
+	RanAt      time.Time `json:"ran_at"`
+	DurationMS int64     `json:"duration_ms"`
+	ExitCode   int       `json:"exit_code"`
+	Stdout     string    `json:"stdout,omitempty"`
+	Stderr     string    `json:"stderr,omitempty"`
+	Error      string    `json:"error,omitempty"`
 }
 
 // Index handles GET /
@@ -94,6 +131,7 @@ func (h *Handlers) Index(c *gin.Context) {
 	data := PageData{
 		Title:        "Dashboard",
 		Active:       "dashboard",
+		Version:      h.version,
 		Printers:     printers,
 		PrinterStats: printerStats,
 		Stats:        stats,
@@ -112,6 +150,7 @@ func (h *Handlers) Printers(c *gin.Context) {
 	data := PageData{
 		Title:    "Printers",
 		Active:   "printers",
+		Version:  h.version,
 		Printers: printers,
 	}
 
@@ -126,9 +165,10 @@ func (h *Handlers) Jobs(c *gin.Context) {
 	jobs := h.printQueue.GetHistory(50)
 
 	data := PageData{
-		Title:  "Jobs",
-		Active: "jobs",
-		Jobs:   jobs,
+		Title:   "Jobs",
+		Active:  "jobs",
+		Version: h.version,
+		Jobs:    jobs,
 	}
 
 	c.Header("Content-Type", "text/html; charset=utf-8")
@@ -197,16 +237,36 @@ func (h *Handlers) ExportJobInfo(c *gin.Context) {
 		return
 	}
 
+	var (
+		printerDiag  *PrinterDiagnostics
+		queueWaitMS  int64
+		printRunMS   int64
+		totalElapsed int64
+	)
+	if data.Entry.Result != nil {
+		printerDiag = h.collectPrinterDiagnostics(data.Entry.Result)
+		queueWaitMS = durationMS(data.Entry.Result.CreatedAt, data.Entry.Result.StartedAt)
+		printRunMS = durationMS(data.Entry.Result.StartedAt, data.Entry.Result.CompletedAt)
+		totalElapsed = durationMS(data.Entry.Result.CreatedAt, data.Entry.Result.CompletedAt)
+	}
+
 	exportPayload := JobDiagnosticsExport{
+		ExportedBy:         "OpenPrintHub",
 		ExportedAt:         time.Now(),
+		Platform:           runtime.GOOS,
+		ServiceVersion:     h.version,
 		Job:                data.Entry.Job,
 		Result:             data.Entry.Result,
 		PrinterStatus:      data.PrinterStatus,
 		PrinterStatusError: data.PrinterStatusError,
+		PrinterDiagnostics: printerDiag,
 		PayloadBytes:       data.PayloadBytes,
 		PayloadBase64Bytes: data.PayloadBase64Bytes,
 		PayloadSHA256:      data.PayloadSHA256,
 		ProcessingDuration: data.ProcessingDuration,
+		QueueWaitMS:        queueWaitMS,
+		PrintRunMS:         printRunMS,
+		TotalElapsedMS:     totalElapsed,
 	}
 
 	filenameID := jobID
@@ -283,4 +343,96 @@ func (h *Handlers) collectJobInfo(jobID string) (JobInfoData, bool) {
 	}
 
 	return data, true
+}
+
+func (h *Handlers) collectPrinterDiagnostics(result *printer.JobResult) *PrinterDiagnostics {
+	if result == nil || result.PrinterName == "" {
+		return nil
+	}
+
+	diag := &PrinterDiagnostics{
+		CollectedAt: time.Now(),
+		Platform:    runtime.GOOS,
+		PrinterName: result.PrinterName,
+	}
+
+	switch runtime.GOOS {
+	case "darwin", "linux":
+		cupsName := strings.ReplaceAll(result.PrinterName, " ", "_")
+		diag.CUPSName = cupsName
+		diag.Commands = []CommandDiagnostics{
+			runDiagnosticCommand("lpstat", "-p", cupsName, "-l"),
+			runDiagnosticCommand("lpstat", "-v", cupsName),
+			runDiagnosticCommand("lpstat", "-W", "all", "-o", cupsName),
+			runDiagnosticCommand("lpoptions", "-p", cupsName, "-l"),
+			runDiagnosticCommand("lpstat", "-t"),
+		}
+	case "windows":
+		escaped := strings.ReplaceAll(result.PrinterName, "'", "''")
+		diag.Commands = []CommandDiagnostics{
+			runDiagnosticCommand("powershell.exe", "-NoProfile", "-Command", fmt.Sprintf("Get-Printer -Name '%s' | Format-List *", escaped)),
+			runDiagnosticCommand("powershell.exe", "-NoProfile", "-Command", fmt.Sprintf("Get-PrintJob -PrinterName '%s' | Select-Object -First 20 | Format-List *", escaped)),
+		}
+	default:
+		diag.Commands = []CommandDiagnostics{
+			{
+				Command:  "diagnostics",
+				RanAt:    time.Now(),
+				ExitCode: -1,
+				Error:    "platform diagnostics not implemented",
+			},
+		}
+	}
+
+	return diag
+}
+
+func runDiagnosticCommand(command string, args ...string) CommandDiagnostics {
+	start := time.Now()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, command, args...)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	exitCode := 0
+	errMsg := ""
+	if err != nil {
+		errMsg = err.Error()
+		exitCode = -1
+		var exitErr *exec.ExitError
+		if ok := errors.As(err, &exitErr); ok {
+			exitCode = exitErr.ExitCode()
+		}
+	}
+
+	return CommandDiagnostics{
+		Command:    command,
+		Args:       args,
+		RanAt:      start,
+		DurationMS: time.Since(start).Milliseconds(),
+		ExitCode:   exitCode,
+		Stdout:     truncateForExport(stdout.String(), 32*1024),
+		Stderr:     truncateForExport(stderr.String(), 32*1024),
+		Error:      errMsg,
+	}
+}
+
+func truncateForExport(value string, max int) string {
+	trimmed := strings.TrimSpace(value)
+	if max <= 0 || len(trimmed) <= max {
+		return trimmed
+	}
+	return trimmed[:max] + "\n...[truncated]"
+}
+
+func durationMS(start, end time.Time) int64 {
+	if start.IsZero() || end.IsZero() || end.Before(start) {
+		return 0
+	}
+	return end.Sub(start).Milliseconds()
 }

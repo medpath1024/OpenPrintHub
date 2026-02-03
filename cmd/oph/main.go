@@ -15,7 +15,11 @@ import (
 
 const (
 	defaultPort = 16800
-	version     = "0.1.0"
+)
+
+var (
+	// version is injected at build time via -ldflags "-X main.version=..."
+	version = "0.1.4"
 )
 
 func main() {
@@ -46,6 +50,7 @@ func main() {
 	server := api.NewServer(api.Config{
 		Port:         *port,
 		WebPort:      *webPort,
+		Version:      version,
 		AllowOrigins: *allowOrigins,
 		PrinterSvc:   printerSvc,
 		PrintQueue:   printQueue,

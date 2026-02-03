@@ -16,6 +16,7 @@ import (
 type Config struct {
 	Port         int // API/communication port
 	WebPort      int // Web admin dashboard port (typically Port+1)
+	Version      string
 	AllowOrigins string
 	PrinterSvc   printer.Service
 	PrintQueue   *print.Queue
@@ -32,6 +33,11 @@ type Server struct {
 
 // NewServer creates a new API server
 func NewServer(config Config) *Server {
+	if config.Version == "" {
+		config.Version = Version
+	}
+	Version = config.Version
+
 	// Set Gin mode
 	gin.SetMode(gin.ReleaseMode)
 
@@ -104,7 +110,7 @@ func (s *Server) setupWebRoutes() {
 	s.webRouter.Use(SecurityHeadersMiddleware())
 
 	// Create web handlers
-	webHandlers := web.NewHandlers(s.config.PrinterSvc, s.config.PrintQueue)
+	webHandlers := web.NewHandlers(s.config.PrinterSvc, s.config.PrintQueue, s.config.Version)
 
 	// Serve static files
 	s.webRouter.GET("/static/*filepath", func(c *gin.Context) {

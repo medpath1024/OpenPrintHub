@@ -158,8 +158,8 @@ func TestHandlers_HealthCheck(t *testing.T) {
 	if resp["status"] != "ok" {
 		t.Errorf("Expected status 'ok', got '%v'", resp["status"])
 	}
-	if resp["version"] != "0.1.0" {
-		t.Errorf("Expected version '0.1.0', got '%v'", resp["version"])
+	if resp["version"] != "0.1.4" {
+		t.Errorf("Expected version '0.1.4', got '%v'", resp["version"])
 	}
 }
 

@@ -2,7 +2,7 @@
 
 # Binary name
 BINARY_NAME=oph
-VERSION=0.1.0
+VERSION=0.1.4
 
 # Build directories
 BUILD_DIR=build

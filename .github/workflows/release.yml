@@ -99,9 +99,9 @@ jobs:
           name: windows-installer
           path: dist/*-setup.exe
 
-  # Build macOS DMG
+  # Build macOS PKG
   build-macos:
-    name: Build macOS DMG
+    name: Build macOS PKG
     runs-on: macos-latest
     strategy:
       matrix:
@@ -131,22 +131,22 @@ jobs:
           GOOS=darwin GOARCH=${{ matrix.goarch }} CGO_ENABLED=0 \
             go build -ldflags "${LDFLAGS}" -o dist/oph-darwin-${{ matrix.goarch }} ./cmd/oph
 
-      - name: Create DMG
+      - name: Create PKG
         run: |
           VERSION=${GITHUB_REF_NAME#v}
-          chmod +x scripts/macos/create-dmg.sh
+          chmod +x scripts/macos/create-pkg.sh
           
           BINARY_PATH=dist/oph-darwin-${{ matrix.goarch }} \
           VERSION=${VERSION} \
           ARCH=${{ matrix.arch }} \
           OUTPUT_DIR=dist \
-          ./scripts/macos/create-dmg.sh
+          ./scripts/macos/create-pkg.sh
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: macos-dmg-${{ matrix.arch }}
-          path: dist/*.dmg
+          name: macos-pkg-${{ matrix.arch }}
+          path: dist/*.pkg
 
   # Create GitHub Release
   release:
@@ -202,8 +202,8 @@ jobs:
             echo "| Platform | Download |" >> CHANGELOG_RELEASE.md
             echo "|----------|----------|" >> CHANGELOG_RELEASE.md
             echo "| Windows (64-bit) | \`OpenPrintHub-*-windows-amd64-setup.exe\` |" >> CHANGELOG_RELEASE.md
-            echo "| macOS (Intel) | \`OpenPrintHub-*-x64.dmg\` |" >> CHANGELOG_RELEASE.md
-            echo "| macOS (Apple Silicon) | \`OpenPrintHub-*-arm64.dmg\` |" >> CHANGELOG_RELEASE.md
+            echo "| macOS (Intel) | \`OpenPrintHub-*-x64.pkg\` |" >> CHANGELOG_RELEASE.md
+            echo "| macOS (Apple Silicon) | \`OpenPrintHub-*-arm64.pkg\` |" >> CHANGELOG_RELEASE.md
             echo "| Linux (64-bit) | \`oph-linux-amd64.tar.gz\` |" >> CHANGELOG_RELEASE.md
             echo "| Linux (ARM64) | \`oph-linux-arm64.tar.gz\` |" >> CHANGELOG_RELEASE.md
           fi

@@ -40,6 +40,8 @@ Once running, OpenPrintHub listens on two ports:
 - **API Server**: `http://localhost:16800` - For application integration
 - **Admin Dashboard**: `http://localhost:16801` - Web interface for printer management
 
+For macOS release packages (`.pkg`), OpenPrintHub is installed as a `launchd` service and auto-starts after installation.
+
 See [API Reference](#api-reference) below for API documentation.
 
 ## API Reference

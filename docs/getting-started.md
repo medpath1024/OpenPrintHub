@@ -14,15 +14,17 @@ This guide will help you install and configure OpenPrintHub in 5 minutes.
 
 1. Go to the [Releases page](https://github.com/medpath1024/OpenPrintHub/releases)
 2. Download the version for your system:
-   - macOS Intel: `oph-darwin-amd64`
-   - macOS Apple Silicon: `oph-darwin-arm64`
+   - macOS Intel: `OpenPrintHub-<version>-x64.pkg`
+   - macOS Apple Silicon: `OpenPrintHub-<version>-arm64.pkg`
    - Windows: `oph-windows-amd64.exe`
 
-3. Set execute permission (macOS only):
+3. Install on macOS:
 
 ```bash
-chmod +x oph-darwin-*
+sudo installer -pkg OpenPrintHub-<version>-arm64.pkg -target /
 ```
+
+The macOS package installs and starts a background launchd service automatically.
 
 ### Option 2: Build from Source
 
@@ -44,7 +46,13 @@ make build
 
 ```bash
 # macOS
-./oph-darwin-arm64
+sudo launchctl kickstart -k system/com.openprinthub.oph
+
+# Check service status
+sudo launchctl print system/com.openprinthub.oph
+
+# Logs
+tail -f /var/log/openprinthub.log
 
 # Windows
 oph-windows-amd64.exe
