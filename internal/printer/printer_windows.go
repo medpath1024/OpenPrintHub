@@ -509,8 +509,8 @@ param(
   [string]$ImagePath,
   [string]$PrinterName,
   [int]$Copies = 1,
-  [bool]$Landscape = $false,
-  [bool]$FitToPage = $true
+  [int]$Landscape = 0,
+  [int]$FitToPage = 1
 )
 Add-Type -AssemblyName System.Drawing
 $img = [System.Drawing.Image]::FromFile($ImagePath)
@@ -522,13 +522,13 @@ try {
   }
   if ($Copies -lt 1) { $Copies = 1 }
   $pd.PrinterSettings.Copies = [int16]$Copies
-  $pd.DefaultPageSettings.Landscape = $Landscape
+  $pd.DefaultPageSettings.Landscape = ($Landscape -ne 0)
   $pd.PrintController = New-Object System.Drawing.Printing.StandardPrintController
 
   $handler = [System.Drawing.Printing.PrintPageEventHandler]{
     param($sender, $e)
     $bounds = $e.MarginBounds
-    if ($FitToPage) {
+    if ($FitToPage -ne 0) {
       $scaleX = $bounds.Width / $img.Width
       $scaleY = $bounds.Height / $img.Height
       $scale = [Math]::Min($scaleX, $scaleY)
@@ -574,8 +574,8 @@ try {
 		"-ImagePath", imagePath,
 		"-PrinterName", printerName,
 		"-Copies", fmt.Sprintf("%d", max(1, settings.Copies)),
-		"-Landscape", fmt.Sprintf("%t", settings.Orientation == "landscape"),
-		"-FitToPage", fmt.Sprintf("%t", settings.FitToPage),
+		"-Landscape", boolToIntString(settings.Orientation == "landscape"),
+		"-FitToPage", boolToIntString(settings.FitToPage),
 	}
 
 	cmd := exec.Command("powershell.exe", args...)
@@ -602,4 +602,11 @@ func (s *windowsService) validatePrinterStatus(printerName string) error {
 		}
 		time.Sleep(250 * time.Millisecond)
 	}
+}
+
+func boolToIntString(v bool) string {
+	if v {
+		return "1"
+	}
+	return "0"
 }

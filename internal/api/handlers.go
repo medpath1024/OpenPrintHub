@@ -13,7 +13,7 @@ import (
 
 // Version information (set at build time)
 var (
-	Version   = "0.1.5"
+	Version   = "0.1.6"
 	BuildTime = ""
 	GitCommit = ""
 	startTime = time.Now()
