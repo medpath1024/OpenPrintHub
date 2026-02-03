@@ -5,7 +5,7 @@ set -euo pipefail
 
 APP_NAME="OpenPrintHub"
 IDENTIFIER="com.openprinthub.oph"
-VERSION="${VERSION:-0.1.4}"
+VERSION="${VERSION:-0.1.5}"
 BINARY_PATH="${BINARY_PATH:-./oph}"
 OUTPUT_DIR="${OUTPUT_DIR:-.}"
 ARCH="${ARCH:-arm64}"

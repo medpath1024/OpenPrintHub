@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -263,30 +265,34 @@ func (s *windowsService) parseStatus(status uint32) PrinterStatus {
 // Print sends a print job to the specified printer
 // For PDF files on Windows, we use ShellExecute with "print" verb
 func (s *windowsService) Print(job *PrintJob) error {
-	// Create temp file for print data
-	tmpFile, err := os.CreateTemp("", "oph-print-*.pdf")
-	if err != nil {
-		return fmt.Errorf("failed to create temp file: %w", err)
+	switch job.Type {
+	case JobTypePDF:
+		tmpPath, err := writeTempPrintFile("oph-print-*.pdf", ".pdf", job.Data)
+		if err != nil {
+			return err
+		}
+		// Keep temp file for shell-based handlers that may read asynchronously.
+		if err := s.printPDFWithShell(tmpPath, job.PrinterName, job.Settings); err != nil {
+			return err
+		}
+		return s.validatePrinterStatus(job.PrinterName)
+	case JobTypeImage:
+		ext := detectImageExtension(job.Data)
+		tmpPath, err := writeTempPrintFile("oph-image-*"+ext, ext, job.Data)
+		if err != nil {
+			return err
+		}
+		// Keep temp file for the print process lifecycle.
+		if err := s.printImageWithPowerShell(tmpPath, job.PrinterName, job.Settings); err != nil {
+			return err
+		}
+		return s.validatePrinterStatus(job.PrinterName)
+	default:
+		if err := s.printDirect(job.PrinterName, job.Data); err != nil {
+			return err
+		}
+		return s.validatePrinterStatus(job.PrinterName)
 	}
-	tmpPath := tmpFile.Name()
-	// Note: We don't delete immediately as the print spooler needs access
-	// The file will be cleaned up on next run or by the OS
-
-	if _, err := tmpFile.Write(job.Data); err != nil {
-		tmpFile.Close()
-		os.Remove(tmpPath)
-		return fmt.Errorf("failed to write print data: %w", err)
-	}
-	tmpFile.Close()
-
-	// For PDF, use ShellExecute to print via the default PDF handler
-	// This requires a PDF reader like Adobe Reader, Foxit, or SumatraPDF
-	if job.Type == JobTypePDF {
-		return s.printPDFWithShell(tmpPath, job.PrinterName, job.Settings)
-	}
-
-	// For other types, use direct printing
-	return s.printDirect(job.PrinterName, job.Data)
 }
 
 // printPDFWithShell prints a PDF using the shell print verb
@@ -373,6 +379,10 @@ func (s *windowsService) printWithSumatra(sumatraPath, filePath, printerName str
 
 // printDirect sends raw data directly to the printer using WritePrinter
 func (s *windowsService) printDirect(printerName string, data []byte) error {
+	if len(data) == 0 {
+		return fmt.Errorf("print data is empty")
+	}
+
 	var hPrinter syscall.Handle
 	pName := stringToUTF16Ptr(printerName)
 
@@ -429,5 +439,167 @@ func (s *windowsService) printDirect(printerName string, data []byte) error {
 
 // PrintRaw sends raw data directly to a printer (for ESC/POS, ZPL, etc.)
 func (s *windowsService) PrintRaw(printerName string, data []byte) error {
-	return s.printDirect(printerName, data)
+	if err := s.printDirect(printerName, data); err != nil {
+		return err
+	}
+	return s.validatePrinterStatus(printerName)
+}
+
+func writeTempPrintFile(pattern, ext string, data []byte) (string, error) {
+	tmpFile, err := os.CreateTemp("", pattern)
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp file: %w", err)
+	}
+
+	tmpPath := tmpFile.Name()
+	if ext != "" && filepath.Ext(tmpPath) != ext {
+		newPath := tmpPath + ext
+		_ = tmpFile.Close()
+		if renameErr := os.Rename(tmpPath, newPath); renameErr == nil {
+			tmpPath = newPath
+			tmpFile, err = os.OpenFile(tmpPath, os.O_WRONLY|os.O_TRUNC, 0600)
+			if err != nil {
+				return "", fmt.Errorf("failed to reopen temp file: %w", err)
+			}
+		}
+	}
+
+	if _, err := tmpFile.Write(data); err != nil {
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpPath)
+		return "", fmt.Errorf("failed to write print data: %w", err)
+	}
+
+	if err := tmpFile.Close(); err != nil {
+		_ = os.Remove(tmpPath)
+		return "", fmt.Errorf("failed to close temp file: %w", err)
+	}
+
+	return tmpPath, nil
+}
+
+func detectImageExtension(data []byte) string {
+	if len(data) >= 8 &&
+		data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47 &&
+		data[4] == 0x0D && data[5] == 0x0A && data[6] == 0x1A && data[7] == 0x0A {
+		return ".png"
+	}
+
+	if len(data) >= 3 && data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF {
+		return ".jpg"
+	}
+
+	if len(data) >= 6 {
+		header := string(data[:6])
+		if header == "GIF87a" || header == "GIF89a" {
+			return ".gif"
+		}
+	}
+
+	if len(data) >= 2 && data[0] == 0x42 && data[1] == 0x4D {
+		return ".bmp"
+	}
+
+	return ".png"
+}
+
+func (s *windowsService) printImageWithPowerShell(imagePath, printerName string, settings PrintSettings) error {
+	psScript := `
+param(
+  [string]$ImagePath,
+  [string]$PrinterName,
+  [int]$Copies = 1,
+  [bool]$Landscape = $false,
+  [bool]$FitToPage = $true
+)
+Add-Type -AssemblyName System.Drawing
+$img = [System.Drawing.Image]::FromFile($ImagePath)
+try {
+  $pd = New-Object System.Drawing.Printing.PrintDocument
+  $pd.PrinterSettings.PrinterName = $PrinterName
+  if (-not $pd.PrinterSettings.IsValid) {
+    throw "Printer not found or unavailable: $PrinterName"
+  }
+  if ($Copies -lt 1) { $Copies = 1 }
+  $pd.PrinterSettings.Copies = [int16]$Copies
+  $pd.DefaultPageSettings.Landscape = $Landscape
+  $pd.PrintController = New-Object System.Drawing.Printing.StandardPrintController
+
+  $handler = [System.Drawing.Printing.PrintPageEventHandler]{
+    param($sender, $e)
+    $bounds = $e.MarginBounds
+    if ($FitToPage) {
+      $scaleX = $bounds.Width / $img.Width
+      $scaleY = $bounds.Height / $img.Height
+      $scale = [Math]::Min($scaleX, $scaleY)
+      $w = [int]($img.Width * $scale)
+      $h = [int]($img.Height * $scale)
+      $x = $bounds.X + [int](($bounds.Width - $w) / 2)
+      $y = $bounds.Y + [int](($bounds.Height - $h) / 2)
+      $rect = New-Object System.Drawing.Rectangle($x, $y, $w, $h)
+    } else {
+      $rect = New-Object System.Drawing.Rectangle($bounds.X, $bounds.Y, $img.Width, $img.Height)
+    }
+    $e.Graphics.DrawImage($img, $rect)
+    $e.HasMorePages = $false
+  }
+
+  $pd.add_PrintPage($handler)
+  $pd.Print()
+} finally {
+  if ($pd) { $pd.Dispose() }
+  $img.Dispose()
+}
+`
+
+	scriptFile, err := os.CreateTemp("", "oph-print-image-*.ps1")
+	if err != nil {
+		return fmt.Errorf("failed to create powershell script file: %w", err)
+	}
+	scriptPath := scriptFile.Name()
+	defer func() { _ = os.Remove(scriptPath) }()
+
+	if _, err := scriptFile.WriteString(psScript); err != nil {
+		_ = scriptFile.Close()
+		return fmt.Errorf("failed to write powershell script: %w", err)
+	}
+	if err := scriptFile.Close(); err != nil {
+		return fmt.Errorf("failed to close powershell script file: %w", err)
+	}
+
+	args := []string{
+		"-NoProfile",
+		"-ExecutionPolicy", "Bypass",
+		"-File", scriptPath,
+		"-ImagePath", imagePath,
+		"-PrinterName", printerName,
+		"-Copies", fmt.Sprintf("%d", max(1, settings.Copies)),
+		"-Landscape", fmt.Sprintf("%t", settings.Orientation == "landscape"),
+		"-FitToPage", fmt.Sprintf("%t", settings.FitToPage),
+	}
+
+	cmd := exec.Command("powershell.exe", args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("powershell image print failed: %w, output: %s", err, string(output))
+	}
+
+	return nil
+}
+
+func (s *windowsService) validatePrinterStatus(printerName string) error {
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		status, err := s.Status(printerName)
+		if err == nil {
+			switch status.Status {
+			case StatusError, StatusOffline, StatusPaperJam, StatusPaperOut:
+				return fmt.Errorf("printer reported status %s after submit", status.Status)
+			}
+		}
+		if time.Now().After(deadline) {
+			return nil
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
 }

@@ -19,7 +19,7 @@ const (
 
 var (
 	// version is injected at build time via -ldflags "-X main.version=..."
-	version = "0.1.4"
+	version = "0.1.5"
 )
 
 func main() {
