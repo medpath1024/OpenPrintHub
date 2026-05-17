@@ -191,11 +191,11 @@
 </head>
 <body>
     <h1>OpenPrintHub Demo</h1>
-    
+
     <div id="connectionStatus" class="status disconnected">
         Connecting to OpenPrintHub...
     </div>
-    
+
     <div id="serviceInfo" class="card" style="display:none;">
         <strong>Service Info:</strong> <span id="infoText"></span>
     </div>
@@ -298,16 +298,18 @@ Cookie,2.50</textarea>
         <button class="secondary" onclick="loadJobs()">Refresh Jobs</button>
         <div id="jobList" style="margin-top: 15px;"></div>
     </div>
-    
+
     <div class="card">
         <h2>WebSocket Status</h2>
         <div id="wsLog" class="ws-log"></div>
     </div>
 
     <script>
-        const OPH_URL = 'http://localhost:16800';
-        const WS_URL = 'ws://localhost:16800/v1/ws';
-        
+        const params = new URLSearchParams(window.location.search);
+        const rawBaseUrl = params.get('oph') || params.get('server') || 'http://localhost:16800';
+        const OPH_URL = rawBaseUrl.replace(/\/+$/, '');
+        const WS_URL = params.get('ws') || `${OPH_URL.replace(/^http/i, 'ws')}/v1/ws`;
+
         let selectedPrinter = null;
         let ws = null;
 
@@ -337,19 +339,19 @@ Cookie,2.50</textarea>
                 const response = await fetch(`${OPH_URL}/health`);
                 const data = await response.json();
                 document.getElementById('connectionStatus').className = 'status connected';
-                document.getElementById('connectionStatus').textContent = 
+                document.getElementById('connectionStatus').textContent =
                     `Connected to OpenPrintHub v${data.version}`;
-                
+
                 // Get detailed service info
                 const infoResponse = await fetch(`${OPH_URL}/v1/info`);
                 const info = await infoResponse.json();
                 document.getElementById('serviceInfo').style.display = 'block';
-                document.getElementById('infoText').textContent = 
+                document.getElementById('infoText').textContent =
                     `v${info.version} | ${info.platform}/${info.arch} | Uptime: ${Math.floor(info.uptime/60)}m | Printers: ${info.printers}`;
             } catch (e) {
                 document.getElementById('connectionStatus').className = 'status disconnected';
-                document.getElementById('connectionStatus').textContent = 
-                    'Cannot connect to OpenPrintHub. Make sure it is running on localhost:16800';
+                document.getElementById('connectionStatus').textContent =
+                    `Cannot connect to OpenPrintHub. Make sure it is running on ${OPH_URL}`;
             }
         }
 
@@ -358,33 +360,33 @@ Cookie,2.50</textarea>
             try {
                 const response = await fetch(`${OPH_URL}/v1/printers`);
                 const printers = await response.json();
-                
+
                 const container = document.getElementById('printerList');
                 if (printers.length === 0) {
                     container.innerHTML = '<p>No printers found</p>';
                     return;
                 }
-                
+
                 container.innerHTML = printers.map(p => `
-                    <div class="printer-item ${p.is_default ? 'selected' : ''}" 
+                    <div class="printer-item ${p.is_default ? 'selected' : ''}"
                          data-name="${p.name}" onclick="selectPrinter(this, '${p.name}')">
                         <div class="name">${p.name}</div>
                         <span class="status ${p.status}">${p.status}</span>
                         ${p.is_default ? ' (default)' : ''}
                     </div>
                 `).join('');
-                
+
                 // Select default printer
                 const defaultPrinter = printers.find(p => p.is_default) || printers[0];
                 selectedPrinter = defaultPrinter.name;
             } catch (e) {
-                document.getElementById('printerList').innerHTML = 
+                document.getElementById('printerList').innerHTML =
                     '<p>Error loading printers</p>';
             }
         }
 
         function selectPrinter(element, name) {
-            document.querySelectorAll('.printer-item').forEach(el => 
+            document.querySelectorAll('.printer-item').forEach(el =>
                 el.classList.remove('selected'));
             element.classList.add('selected');
             selectedPrinter = name;
@@ -393,18 +395,18 @@ Cookie,2.50</textarea>
         // WebSocket
         function connectWebSocket() {
             ws = new WebSocket(WS_URL);
-            
+
             ws.onopen = () => {
                 logWS('Connected to WebSocket');
             };
-            
+
             ws.onmessage = (event) => {
                 const msg = JSON.parse(event.data);
                 if (msg.type === 'job_status') {
                     logWS(`Job ${msg.data.job_id.slice(0, 8)}...: ${msg.data.status} - ${msg.data.message || ''}`);
                 }
             };
-            
+
             ws.onclose = () => {
                 logWS('WebSocket disconnected, reconnecting...');
                 setTimeout(connectWebSocket, 3000);
@@ -431,23 +433,23 @@ Cookie,2.50</textarea>
             const fileInput = document.getElementById('pdfFile');
             const copies = parseInt(document.getElementById('pdfCopies').value);
             const jobName = document.getElementById('pdfJobName').value;
-            
+
             if (!fileInput.files.length) {
                 showResult('Please select a PDF file', true);
                 return;
             }
-            
+
             if (!selectedPrinter) {
                 showResult('Please select a printer', true);
                 return;
             }
-            
+
             const file = fileInput.files[0];
             const reader = new FileReader();
-            
+
             reader.onload = async () => {
                 const base64 = reader.result.split(',')[1];
-                
+
                 try {
                     const response = await fetch(`${OPH_URL}/v1/print`, {
                         method: 'POST',
@@ -465,10 +467,10 @@ Cookie,2.50</textarea>
                     showResult(e.message, true);
                 }
             };
-            
+
             reader.readAsDataURL(file);
         }
-        
+
         // Cancel job
         async function cancelJob() {
             const jobId = document.getElementById('cancelJobId').value.trim();
@@ -476,7 +478,7 @@ Cookie,2.50</textarea>
                 showResult('Please enter a Job ID', true);
                 return;
             }
-            
+
             try {
                 const response = await fetch(`${OPH_URL}/v1/jobs/${jobId}/cancel`, {
                     method: 'POST'
@@ -488,19 +490,19 @@ Cookie,2.50</textarea>
                 showResult(e.message, true);
             }
         }
-        
+
         // Load jobs list
         async function loadJobs() {
             try {
                 const response = await fetch(`${OPH_URL}/v1/jobs`);
                 const jobs = await response.json();
-                
+
                 const container = document.getElementById('jobList');
                 if (jobs.length === 0) {
                     container.innerHTML = '<p style="color: #666;">No active jobs</p>';
                     return;
                 }
-                
+
                 container.innerHTML = `
                     <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
                         <tr style="background: #f0f0f0;">
@@ -525,7 +527,7 @@ Cookie,2.50</textarea>
                 document.getElementById('jobList').innerHTML = '<p style="color: red;">Error loading jobs</p>';
             }
         }
-        
+
         // Cancel job by ID (from table)
         async function cancelJobById(jobId) {
             document.getElementById('cancelJobId').value = jobId;
@@ -538,7 +540,7 @@ Cookie,2.50</textarea>
                 showResult('Please select a printer', true);
                 return;
             }
-            
+
             const storeName = document.getElementById('storeName').value;
             const itemsText = document.getElementById('receiptItems').value;
             const items = itemsText.split('\n')
@@ -547,33 +549,33 @@ Cookie,2.50</textarea>
                     const [name, price] = line.split(',');
                     return { name: name.trim(), price: parseFloat(price) };
                 });
-            
+
             // Build ESC/POS commands
             const commands = [];
-            
+
             // Initialize
             commands.push(0x1B, 0x40);
-            
+
             // Center align
             commands.push(0x1B, 0x61, 0x01);
-            
+
             // Double size
             commands.push(0x1D, 0x21, 0x11);
-            
+
             // Store name
             commands.push(...new TextEncoder().encode(storeName));
             commands.push(0x0A, 0x0A);
-            
+
             // Normal size
             commands.push(0x1D, 0x21, 0x00);
-            
+
             // Left align
             commands.push(0x1B, 0x61, 0x00);
-            
+
             // Separator
             commands.push(...new TextEncoder().encode('-'.repeat(32)));
             commands.push(0x0A);
-            
+
             // Items
             let total = 0;
             items.forEach(item => {
@@ -582,7 +584,7 @@ Cookie,2.50</textarea>
                 commands.push(0x0A);
                 total += item.price;
             });
-            
+
             // Total
             commands.push(...new TextEncoder().encode('-'.repeat(32)));
             commands.push(0x0A);
@@ -590,18 +592,18 @@ Cookie,2.50</textarea>
             commands.push(...new TextEncoder().encode(`${'TOTAL'.padEnd(22)}$${total.toFixed(2).padStart(7)}`));
             commands.push(0x0A);
             commands.push(0x1B, 0x45, 0x00); // Bold off
-            
+
             // Footer
             commands.push(0x0A);
             commands.push(0x1B, 0x61, 0x01); // Center
             commands.push(...new TextEncoder().encode('Thank you!'));
             commands.push(0x0A, 0x0A, 0x0A);
-            
+
             // Cut
             commands.push(0x1D, 0x56, 0x00);
-            
+
             const base64 = btoa(String.fromCharCode(...commands));
-            
+
             try {
                 const response = await fetch(`${OPH_URL}/v1/print`, {
                     method: 'POST',
@@ -624,21 +626,21 @@ Cookie,2.50</textarea>
                 showResult('Please select a printer', true);
                 return;
             }
-            
+
             const name = document.getElementById('labelName').value;
             const sku = document.getElementById('labelSKU').value;
             const barcode = document.getElementById('labelBarcode').value;
             const price = document.getElementById('labelPrice').value;
-            
+
             const zpl = `^XA
 ^FO30,30^A0N,40,40^FD${name}^FS
 ^FO30,80^A0N,25,25^FDSKU: ${sku}^FS
 ^FO30,120^A0N,35,35^FD$${parseFloat(price).toFixed(2)}^FS
 ^FO30,170^BY2^BCN,80,Y,N,N^FD${barcode}^FS
 ^XZ`;
-            
+
             const base64 = btoa(zpl);
-            
+
             try {
                 const response = await fetch(`${OPH_URL}/v1/print`, {
                     method: 'POST',
@@ -661,14 +663,14 @@ Cookie,2.50</textarea>
                 showResult('Please select a printer', true);
                 return;
             }
-            
+
             let data = document.getElementById('rawCommands').value;
             const isBase64 = document.getElementById('rawIsBase64').checked;
-            
+
             if (!isBase64) {
                 data = btoa(data);
             }
-            
+
             try {
                 const response = await fetch(`${OPH_URL}/v1/print`, {
                     method: 'POST',

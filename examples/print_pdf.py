@@ -12,10 +12,20 @@ Examples:
 """
 
 import base64
+import os
 import sys
 import requests
 
-OPH_URL = "http://localhost:16800"
+def _normalize_base_url(url: str) -> str:
+    url = (url or "").strip().rstrip("/")
+    if not url:
+        return "http://localhost:16800"
+    if "://" not in url:
+        url = "http://" + url
+    return url
+
+
+OPH_URL = _normalize_base_url(os.environ.get("OPH_URL", "http://localhost:16800"))
 
 
 def get_printers():
@@ -28,13 +38,13 @@ def get_printers():
 def print_pdf(file_path: str, printer_name: str = None, copies: int = 1, job_name: str = None):
     """
     Print a PDF file.
-    
+
     Args:
         file_path: Path to the PDF file
         printer_name: Name of printer (uses default if not specified)
         copies: Number of copies to print
         job_name: Optional name for the print job (for identification)
-    
+
     Returns:
         Job response dict with job_id and status
     """
@@ -48,15 +58,15 @@ def print_pdf(file_path: str, printer_name: str = None, copies: int = 1, job_nam
             raise Exception("No printers available")
         printer_name = default_printer['name']
         print(f"Using default printer: {printer_name}")
-    
+
     # Use filename as job name if not specified
     if not job_name:
         job_name = file_path.split('/')[-1].split('\\')[-1]
-    
+
     # Read and encode PDF
     with open(file_path, 'rb') as f:
         pdf_base64 = base64.b64encode(f.read()).decode('utf-8')
-    
+
     # Submit print job
     response = requests.post(
         f"{OPH_URL}/v1/print",
@@ -94,17 +104,17 @@ def main():
     if len(sys.argv) < 2:
         print(__doc__)
         sys.exit(1)
-    
+
     file_path = sys.argv[1]
     printer_name = sys.argv[2] if len(sys.argv) > 2 else None
     copies = int(sys.argv[3]) if len(sys.argv) > 3 else 1
     job_name = sys.argv[4] if len(sys.argv) > 4 else None
-    
+
     try:
         # Show service info
         info = get_service_info()
         print(f"Connected to OpenPrintHub v{info['version']} ({info['platform']})")
-        
+
         result = print_pdf(file_path, printer_name, copies, job_name)
         print(f"Print job submitted successfully!")
         print(f"  Job ID: {result['job_id']}")

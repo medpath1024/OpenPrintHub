@@ -1,0 +1,1 @@
+OPH_URL=http://192.168.1.4:16800 python3 examples/print_simple_image_label.py

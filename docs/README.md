@@ -9,6 +9,7 @@ OpenPrintHub (OPH) is a high-performance, cross-platform silent printing service
 - [Configuration Guide](./configuration.md)
 - [Print Examples](./examples.md)
 - [FAQ](./faq.md)
+- [DYMO Label Printing & JSPM Compatibility Design](./dymo-jsprintmanager-design.md)
 
 ## Why OpenPrintHub?
 
