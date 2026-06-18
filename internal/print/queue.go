@@ -186,6 +186,12 @@ func (q *Queue) processJob(job *printer.PrintJob) {
 	// Send to printer
 	var err error
 	if job.Type == printer.JobTypeRaw {
+		if vErr := ValidateRaw(job.Data); vErr != nil {
+			log.Printf("Print job %s rejected: %v", job.ID, vErr)
+			q.jobStore.UpdateJobStatus(job.ID, printer.JobStatusFailed, "Invalid raw payload", vErr)
+			q.notifyStatus(job.ID, printer.JobStatusFailed, vErr.Error())
+			return
+		}
 		err = q.printerSvc.PrintRaw(job.PrinterName, job.Data)
 	} else {
 		err = q.printerSvc.Print(job)
@@ -193,7 +199,8 @@ func (q *Queue) processJob(job *printer.PrintJob) {
 
 	if err != nil {
 		log.Printf("Print job %s failed: %v", job.ID, err)
-		q.jobStore.UpdateJobStatus(job.ID, printer.JobStatusFailed, "Print failed", err)
+		// Surface the underlying printer error message to the client, not a generic string.
+		q.jobStore.UpdateJobStatus(job.ID, printer.JobStatusFailed, err.Error(), err)
 		q.notifyStatus(job.ID, printer.JobStatusFailed, err.Error())
 		return
 	}

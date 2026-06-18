@@ -209,6 +209,19 @@ func (v *RawDataValidator) DetectRawDataType(data []byte) RawDataType {
 	return RawDataTypeUnknown
 }
 
+// ValidateRaw performs a lightweight sanity check on raw command-set payloads
+// before they are passed through to the printer. It rejects empty payloads but
+// tolerates unknown command sets (we forward bytes verbatim and let the printer
+// decide), so this only guards against obviously broken jobs.
+func ValidateRaw(data []byte) error {
+	if len(data) == 0 {
+		return fmt.Errorf("raw print data is empty")
+	}
+	// Detection result is informational only; unknown types are still forwarded.
+	_ = (&RawDataValidator{}).DetectRawDataType(data)
+	return nil
+}
+
 // min returns the minimum of two integers
 func min(a, b int) int {
 	if a < b {
