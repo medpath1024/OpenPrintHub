@@ -23,6 +23,16 @@ type PrinterInfo struct {
 	IsDefault   bool          `json:"is_default"`
 	Location    string        `json:"location,omitempty"`
 	Description string        `json:"description,omitempty"`
+
+	DeviceClass            string   `json:"device_class,omitempty"`
+	MediaKind              string   `json:"media_kind,omitempty"`
+	CommandSets            []string `json:"command_sets,omitempty"`
+	SupportedJobTypes      []string `json:"supported_job_types,omitempty"`
+	PreferredLabelLanguage string   `json:"preferred_label_language,omitempty"`
+	PreferredJobType       string   `json:"preferred_job_type,omitempty"`
+	DPI                    int      `json:"dpi,omitempty"`
+	CapabilitySource       string   `json:"capability_source,omitempty"`
+	CapabilityConfidence   string   `json:"capability_confidence,omitempty"`
 }
 
 // PrintJobType represents the type of print data

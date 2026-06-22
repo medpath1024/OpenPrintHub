@@ -42,12 +42,12 @@ func (s *linuxService) List() ([]PrinterInfo, error) {
 			if len(parts) >= 2 {
 				name := parts[1]
 				status := s.parseStatus(line)
-				printers = append(printers, PrinterInfo{
+				printers = append(printers, ApplyCapabilities(PrinterInfo{
 					ID:        name,
 					Name:      strings.ReplaceAll(name, "_", " "),
 					Status:    status,
 					IsDefault: name == defaultPrinter,
-				})
+				}))
 			}
 		}
 	}
@@ -90,12 +90,14 @@ func (s *linuxService) Status(printerName string) (*PrinterInfo, error) {
 	line := strings.TrimSpace(string(output))
 	status := s.parseStatus(line)
 
-	return &PrinterInfo{
+	info := ApplyCapabilities(PrinterInfo{
 		ID:        cupsName,
 		Name:      printerName,
 		Status:    status,
 		IsDefault: cupsName == defaultPrinter,
-	}, nil
+	})
+
+	return &info, nil
 }
 
 // parseStatus extracts the printer status from lpstat output
@@ -125,8 +127,13 @@ func (s *linuxService) Print(job *PrintJob) error {
 	// Normalize printer name
 	printerName := strings.ReplaceAll(job.PrinterName, " ", "_")
 
+	tempPattern := "oph-print-*.pdf"
+	if job.Type == JobTypeImage {
+		tempPattern = "oph-image-*" + detectImageExtension(job.Data)
+	}
+
 	// Create temp file for print data
-	tmpFile, err := os.CreateTemp("", "oph-print-*.pdf")
+	tmpFile, err := os.CreateTemp("", tempPattern)
 	if err != nil {
 		return fmt.Errorf("failed to create temp file: %w", err)
 	}
